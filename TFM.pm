@@ -232,10 +232,11 @@ sub new
 
 	if (defined @ligkern)		# check for boundary char
 		{
-		my ($skip, $next) = unpack "CA1", $ligkern[0];
+		my ($skip, $next, $opbyte, $remainder);
+		($skip, $next) = unpack "CA1", $ligkern[0];
 		if ($skip == 255)
 			{ $self->{"boundary"} = $next; }
-		my ($skip, $next, $opbyte, $remainder) = unpack
+		($skip, $next, $opbyte, $remainder) = unpack
 			"CA1CC", $ligkern[$#ligkern];
 		if ($skip == 255)
 			{
