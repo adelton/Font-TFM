@@ -1,6 +1,6 @@
 
 
-BEGIN { $| = 1; print "1..5\n"; }
+BEGIN { $| = 1; print "1..7\n"; }
 END {print "not ok 1\n" unless $::loaded_tfm;}
 
 
@@ -14,9 +14,8 @@ $Font::TFM::TEXFONTSDIR = ".";
 ### $Font::TFM::DEBUG = 1;
 
 print "Loading metric information about font cmr10\n";
-my $cmr = new Font::TFM "cmr10";
-
-print "not " unless defined $cmr;
+my $cmr = new Font::TFM "cmr10" or
+	do { print $Font::TFM::errstr, 'not '; };
 print "ok 2\n";
 
 
@@ -42,4 +41,17 @@ printf "Got $kernresult\n";
 
 print "not " if $kernresult != -54613.75;
 print "ok 5\n";
+
+print "Test error message for non-existing font\n";
+my $bad = new Font::TFM 'nonexistent';
+
+if (defined $bad)
+	{ print 'not '; }
+print "ok 6\n";
+
+if (not defined $Font::TFM::errstr)
+	{ print "Font::TFM::errstr not set \n", 'not '; }
+elsif (not $Font::TFM::errstr =~ /^No tfm file found for/)
+	{ print "Font::TFM::errstr `$Font::TFM::errstr' is not what's expected\n", 'not '; }
+print "ok 7\n";
 

@@ -1,9 +1,37 @@
 
 use ExtUtils::MakeMaker;
+
+my $dir = '.:/packages/share/tex/lib/fonts';
+
+eval 'use Font::TFM';
+if ($@ eq '' and defined $Font::TFM::TEXFONTSDIR)
+	{
+	print <<EOF;
+	It seems you already have Font::TFM installed -- you might
+	want to keep the old value of TEXFONTSDIR.
+EOF
+	$dir = $Font::TFM::TEXFONTSDIR;
+	}
+
+$dir = prompt "Where should I search for tfm files (value of \$Font::TFM::TEXFONTSDIR)\n",
+		$dir;
+
+
+sub MY::processPL
+	{
+	package MY;
+	my $inherited = shift->SUPER::processPL(@_);
+	$inherited =~ s/(\$\(PERL\) .* TFM.pm.PL)/$1 -dTEXFONTSDIR=$dir/;
+	$inherited;
+	}
+
 WriteMakefile(
 	'NAME'	=>	'Font::TFM',
-	'VERSION_FROM' =>	'TFM.pm',
-	'dist'	=>	{ COMPRESS => 'gzip -9f', SUFFIX   => '.gz', },
+	'VERSION_FROM' =>	'TFM.pm.PL',
+	'PL_FILES' =>	{ 'TFM.pm.PL' => 'TFM.pm' },
+	'PM' =>		{ 'TFM.pm' => '$(INST_LIBDIR)/TFM.pm' },
+	'dist'	=>	{ COMPRESS => 'gzip -9f', SUFFIX   => '.gz',
+		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
 	);
 
 

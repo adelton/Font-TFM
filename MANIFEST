@@ -2,6 +2,6 @@ Changes
 MANIFEST
 Makefile.PL
 README
-TFM.pm
+TFM.pm.PL
 cmr10.tfm
 t/tfm.t

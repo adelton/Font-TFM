@@ -1,112 +1,49 @@
+use Config;
+my $filename = $0;
+$filename =~ s/\.PL$//;
+
+my $dir = '.';
+if (@ARGV and $ARGV[0] =~ /^-dTEXFONTSDIR=/)
+	{ ( $dir = shift ) =~ s/^-dTEXFONTSDIR=//; }
+
+open OUT,">$filename" or die "Can't create $filename: $!";
+chmod(0755, $filename);
+print "Extracting $filename (setting \$TEXFONTSDIR to `$dir')\n";
+
+
+print OUT <<'EOF';
 
 =head1 NAME
 
 Font::TFM -- read and work with TeX font metric files
 
-=head1 SYNOPSIS
-
-	use Font::TFM;  
-	### $Font::TFM::TEXFONTSDIR = "your directories";
-
-	my $cmr = new Font::TFM "cmr10";
-	(defined $cmr) or die "Error reading font\n";
-	print "Designsize: ", $cmr->designsize(), "\n";
-	print $cmr->width("A"), ", ", $cmr->kern('Wo'), "\n";
-
-should print on the output
-
-	Designsize: 10
-	491521.25, -54613.75
-
-=head1 DESCRIPTION
-
-Method C<Font::TFM::new> creates a new TFM object in memory, loading
-all the necessary information from the C<.tfm> file. Second (optional)
-parameter means scale. You can also use C<Font::TFM::new_at> and as
-the second parameter put requested size in pt.
-
-List of comma separated directories to be searched is in variable
-C<$Font::TFM::TEXFONTSDIR>. These are searched for given C<.tfm> file
-(extension C<.tfm> is optional in the call to C<Font::TFM::new>).
-Variable C<$Font::TFM::TEXFONTSUSELS> can be set to zero to disable
-using ls-R files. If it is kept equal to 1, once it finds file with
-name C<$Font::TFM::LSFILENAME>, it doesn't search through the
-subdirectories and only uses info in this file fo find the C<.tfm>
-file.
-
-These are the methods available on the C<Font::TFM> object:
-
-=over
-
-=item designsize, fontsize
-
-Returns the design size and the actual size of the font in pt.
-
-=item width, height, depth, italic
-
-Returns the requested dimension for a specified character of
-the font.
-
-=item kern, lig, ligpassover
-
-For a two-letter string returns kern between them, ligature formed and
-number of characters to pass over after the ligature.
-
-=item expand
-
-One string parameter undergoes ligature expansion and then kernings
-are inserted. Returns array of string, kern, string, ...
-
-=item word_dimensions
-
-Returns the width, height and depth of a word. Does the lig/kern
-expansion, so the result is the real space it will take on output.
-
-=item word_width, word_height, word_depth
-
-Calls C<word_dimensions> and returns appropriate element. No caching
-is done, so it is better to call C<word_dimensions> yourself if you
-will need more than one dimension of one word.
-
-=item param
-
-Returns parameter of the font, indexed from 1.
-
-=item slant, x_height, em_width, quad
-
-=item space, space_stretch, space_shrink, extra_space
-
-Returns the parameter of the font.
-
-=item name
-
-Returns the name of the font.
-
-=back
-
-Dimensions are multiplied by C<$Font::TFM::MULTIPLY> * actual size
-of the font. Value of C<$Font::TFM::MULTIPLY> defaults to 65536, so
-the dimensions can be used directly when writing the C<.dvi> file.
-
-Variable C<$Font::TFM::DEBUG> may be set to 1 to get the processing
-messages on the standard error output.
-
 =cut
+
 
 package Font::TFM;
 use strict;
 use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
-	$LSFILENAME $MULTIPLY );
+	$LSFILENAME $MULTIPLY $errstr );
 
 # ################
 # Global variables
 #
-$VERSION = 0.05;
-
+$VERSION = 0.06;
+$errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
+sub Error 	{
+		$errstr = join '', @_;
+		print STDERR @_, "\n" if $DEBUG;
+		}
 
-$TEXFONTSDIR = "/packages/share/tex/lib";
+EOF
+
+print OUT <<"EOF";
+\$TEXFONTSDIR = '$dir';
+EOF
+
+print OUT <<'EOF';
 $TEXFONTSUSELS = 1;
 $LSFILENAME = "ls-R";
 $MULTIPLY = 65536;
@@ -133,15 +70,13 @@ sub new
 
 	# find the file
 	my $filename = find_tfm_file($fontname);
-	return unless $filename;
+	unless (defined $filename)
+		{ Error "No tfm file found for $fontname"; return; }
 
 	# try to open the file
 	print STDERR "Loading $filename\n" if DEBUG;
-	if (! open TFMFILE, $filename)
-		{
-		print STDERR "Error reading $filename: $!\n" if DEBUG;
-		return;
-		}
+	open TFMFILE, $filename or
+		do { Error("Error opening $filename: $!"); return; };
 
 	# make the object
 	my $self = {};
@@ -152,10 +87,7 @@ sub new
 	# read header
 	my $buffer = '';
 	if (read(TFMFILE, $buffer, 24) != 24)
-		{
-		print STDERR "Error reading TFM begin: $!\n" if DEBUG;
-		return;
-		}
+		{ Error("Error reading TFM header: $!"); return; }
 
 	# get 12 fields of the header
 	@{$self}{ qw(length headerlength smallest largest numwidth
@@ -167,10 +99,7 @@ sub new
 
 	# read rest of the file
 	if (read(TFMFILE, $buffer, $self->{'length'}) != $self->{'length'})	
-		{
-		print STDERR "Error reading body: $!\n";
-		return;
-		}
+		{ Error("Error reading body: $!"); return; }
 	close TFMFILE;
 
 	my $headerrestlength = $self->{headerlength} - 18 * 4;
@@ -340,8 +269,9 @@ sub find_tfm_file
 		{
 		print STDERR "Font::TFM::find_tfm_file: \$directory = $directory\n" if DEBUG;
 		my $file = find_tfm_file_in_directory($fontname, $directory);
-		return $file if $file;
+		return $file if defined $file;
 		}
+	return;
 	}
 sub find_tfm_file_in_directory
 	{
@@ -356,7 +286,7 @@ sub find_tfm_file_in_directory
 	if ((-f $lsfile) && ($TEXFONTSUSELS))
 		{
 		my $file = find_tfm_file_in_ls($fontname, $lsfile);
-		return $file if $file;
+		return $file if defined $file;
 		}
 	else
 		{
@@ -365,7 +295,7 @@ sub find_tfm_file_in_directory
 			{
 			next unless -d $subdir;
 			my $file = find_tfm_file_in_directory($fontname, $subdir);
-			return $file if $file;
+			return $file if defined $file;
 			}
 		}
 	return;
@@ -378,10 +308,7 @@ sub find_tfm_file_in_ls
 	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsfile = $lsfile\n" if DEBUG;
 	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if DEBUG;
 	if (not open LSFILE, $lsfile)
-		{
-		print STDERR "Error reading $lsfile: $!\n" if DEBUG;
-		return;
-		}
+		{ Error("Error opening $lsfile: $!"); return; }
 	local ($/) = "\n";
 	while (<LSFILE>)
 		{
@@ -531,43 +458,141 @@ sub AUTOLOAD
 
 sub Version	{ $VERSION; }
 
-=head1 CHANGES
+1;
+
+__END__
+
+=head1 SYNOPSIS
+
+	use Font::TFM;  
+	### $Font::TFM::TEXFONTSDIR = 'your directories';
+	### to change the default
+
+	my $cmr = new Font::TFM 'cmr10'
+		or die "Error reading font: $Font::TFM::errstr\n";
+	print 'Designsize: ', $cmr->designsize(), "\n";
+	print $cmr->width('A'), ', ', $cmr->kern('Wo'), "\n";
+
+should print
+
+	Designsize: 10
+	491521.25, -54613.75
+
+=head1 DESCRIPTION
+
+Method B<Font::TFM::new> creates a new TFM object in memory, loading
+all the necessary information from the C<.tfm> file. Second (optional)
+parameter means scale. You can also use B<Font::TFM::new_at> and as
+the second parameter put requested size in pt:
+
+	my $cmr10_12 = new_at Font::TFM 'cmr10', 12;
+
+The methods B<new> and B<new_at> search for the C<.tfm> files in the
+directories listed colon separated in a variable
+I<$Font::TFM::TEXFONTSDIR>, and also in all of their subdirectories.
+By default, they use files C<ls-R> (this name can be changed in the
+I<$Font::TFM::LSFILENAME> variable) to speed up the search. This
+feature can be disabled by setting variable
+I<$Font::TFM::TEXFONTSUSELS> to 0. 
+Suffix C<.tfm> is appended if necessary.
+
+If the file is not found (or there is some other method), B<new>
+returns C<undef> and sets error message to I<$Font::TFM::errstr>.
+
+After was the file loaded, you can use following methods of the object
+to query information about the font's properties and about the
+characters, etc.
 
 =over
 
-=item 0.05 Tue Aug 19 10:09:27 MET DST 1997
+=item designsize, fontsize
 
-Minor bug fixes. Module made use strict clean. Tests added.
+Returns the design size and the actual size of the font in pt.
 
-=item 0.04 Wed Apr  9 10:20:10 MET DST 1997
+	$cmr->designsize;	returns 10
+	$cmr->fontsize;			10
+	$cmr10_12->fontsize;		12
 
-C<Font::TFM::word_dimensions> added, C<Font::TFM::word_width> and new
-C<Font::TFM::word_height> and C<Font::TFM::word_depth> now call it.
+=item width, height, depth, italic
 
-C<Font::TFM::MULTIPLY> added, still defaults do 65535.
+Returns the requested dimension for a specified character of
+the font.
 
-Module made faster, also uses C<AUTOLOAD> for many things.
-Minor bug fixes.
+	$cmr->height("A")		447828.75
+	$cmr10_12->height("A")		537394.5
+	$cmr->italic("I")		0
+	$cmr10_12->italic("f")		61167.75
 
-=item 0.03 Sun Feb 16 13:55:26 MET 1997
+=item kern, lig, ligpassover
 
-C<Font::TFM::expand> added to provide lig/kern expansion.
+For a two-letter string returns kern between them, ligature formed and
+number of characters to pass over after the ligature, respectivelly.
 
-C<Font::TFM::word_width> added to measure width of word on output.
+	$cmr->lig("fi")			\014
+	$cmr->lig("ff")			\013
+	$cmr->lig("\013i")		\016
+	$cmr10_12->kern("AV")		-87381.75
 
-C<Font::TFM::em_width> and C<TFM::name> added.
+=item expand
 
-Name C<Font::TFM> set up instead of C<TFM>.
+One string parameter undergoes ligature expansion and then kernings
+are inserted. Returns array containing of string, kern, string, ...
 
-=item 0.02 Thu Feb 13 20:43:38 MET 1997
+	$cmr->expand("AV--fix")		"A", -72818.125, "V{\014x"
 
-First version released/announced on public.
+=item word_dimensions
+
+Returns the width, height and depth of a word. Does the lig/kern
+expansion, so the result is the real space it will take on output.
+
+	$cmr->word_dimensions("AV--fix")
+					1947881.875, 455111.25, 0
+	$cmr->word_dimensions("pm")	910225, 282168.75, 127431.25
+
+=item word_width, word_height, word_depth
+
+Calls C<word_dimensions> and returns appropriate element. No caching
+is done, so it is better to call C<word_dimensions> yourself if you
+will need more than one dimension of one word.
+
+=item param
+
+Returns parameter of the font, indexed from 1.
+
+=item slant, x_height, em_width, quad
+
+=item space, space_stretch, space_shrink, extra_space
+
+Returns the parameter of the font, by name.
+
+	$cmr->slant()			0
+	$cmsl10->slant()		0.166671752929688
+	$cmr->x_height()		282168.75
+	$cmr->height("x")		282168.75
+	$cmr->em_width()		655361.875
+	$cmr->quad()			655361.875
+
+	$cmr->space()			218453.75
+	$cmr->space_stretch()		109226.875
+	$cmtt10->space()		344061.25
+	$cmtt10->space_stretch()	0
+
+=item name
+
+Returns the name of the font.
 
 =back
 
+Dimensions are multiplied by I<$Font::TFM::MULTIPLY> * actual size
+of the font. Value of I<$Font::TFM::MULTIPLY> defaults to 65536, so
+the dimensions can be used directly when writing the C<.dvi> file.
+
+Variable I<$Font::TFM::DEBUG> may be set to 1 to get the processing
+messages on the standard error output.
+
 =head1 VERSION
 
-0.05
+0.06
 
 =head1 SEE ALSO
 
@@ -575,10 +600,8 @@ TeX::DVI(3), TeX::DVI::Parse(3), perl(1).
 
 =head1 AUTHOR
 
-(c) 1996, 1997 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1996--1998 Jan Pazdziora, adelton@fi.muni.cz,
+http://www.fi.muni.cz/~adelton/
+at Faculty of Informatics, Masaryk University, Brno, Czech Republic
 
-at Faculty of Informatics, Masaryk University, Brno
-
-=cut
-
-1;
+EOF

@@ -1,6 +1,10 @@
 
 Revision history for module Font::TFM.
 
+0.06 Sun Aug  9 14:30:30 MET DST 1998
+	Added a way to specify the TEXFONTSDIR during installation,
+	man page extended.
+
 0.05 Tue Aug 19 10:09:27 MET DST 1997
 	Minor bug fixes. Module made use strict clean. Tests added.
 
