@@ -29,7 +29,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = '0.100';
+$VERSION = '0.110';
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -238,11 +238,14 @@ sub process_lig_kern {
 					= unpack "C4", $ligkernref->[$prognum];
 			}
 		}
-		if ($opbyte >= 128) {
+		if ($opbyte >= 128
+			and not exists $self->{kern}{$char .  $nextchar}) {
 			$self->{kern}{$char . $nextchar}
-				= $kernref->[ 256 * ($opbyte - 128) + $remainder];
+				= $kernref->[ 256 * ($opbyte - 128)
+							+ $remainder];
 		}
-		else {
+		if ($opbyte < 128
+			and not exists $self->{lig}{$char .  $nextchar}) {
 			my ($a, $b, $c) = ($opbyte >> 2, ($opbyte >> 1) & 0x01, $opbyte & 0x01);
 			my $out = "";
 			$out .= $char if $b;
@@ -575,7 +578,7 @@ module and defined your own method open_tfm in it.
 
 =head1 VERSION
 
-0.100
+0.110
 
 =head1 SEE ALSO
 
@@ -583,7 +586,7 @@ TeX::DVI(3), TeX::DVI::Parse(3), perl(1).
 
 =head1 AUTHOR
 
-(c) 1996--2000 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1996--2001 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/
 at Faculty of Informatics, Masaryk University, Brno, Czech Republic
 

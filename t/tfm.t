@@ -1,6 +1,6 @@
 
 
-BEGIN { $| = 1; print "1..7\n"; }
+BEGIN { $| = 1; print "1..8\n"; }
 END {print "not ok 1\n" unless $::loaded_tfm;}
 
 
@@ -54,4 +54,12 @@ if (not defined $Font::TFM::errstr)
 elsif (not $Font::TFM::errstr =~ /^No tfm file found for/)
 	{ print "Font::TFM::errstr `$Font::TFM::errstr' is not what's expected\n", 'not '; }
 print "ok 7\n";
+
+print "Checking kern expansion of va\n";
+$kernresult = $cmr->kern('va');
+printf "Got $kernresult\n";
+
+print "not " if $kernresult != -36408.75;
+print "ok 8\n";
+
 

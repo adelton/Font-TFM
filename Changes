@@ -1,6 +1,10 @@
 
 Revision history for module Font::TFM.
 
+0.110 Mon Sep 24 15:50:22 MET DST 2001
+	Fixed kern handling (kern in 'va' was wrong, for exmaple),
+	reported by Vladimir Volovich.
+
 0.100 Sat Sep 16 20:27:34 MET DST 2000
 	The module made subclassable -- fonts can be retrieved from
 	other locations that local disk. The new module (like
