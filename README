@@ -1,5 +1,5 @@
 
-Module TFM: read and work with TeX font metric files
+Module Font::TFM: read and work with TeX font metric files
 
 Installation:
 

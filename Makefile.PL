@@ -1,6 +1,6 @@
 
 use ExtUtils::MakeMaker;
 WriteMakefile(
-	NAME => 'TFM',
+	NAME => 'Font::TFM',
 	VERSION_FROM => 'TFM.pm',
 	);

@@ -1,14 +1,14 @@
 
-package TFM;
+package Font::TFM;
 
 =head1 NAME
 
-TFM -- read and work with TeX font metric files
+Font::TFM -- read and work with TeX font metric files
 
 =head1 SYNOPSIS
 
-	use TFM;  
-	my $cmr = new TFM "cmr10";
+	use Font::TFM;  
+	my $cmr = new Font::TFM "cmr10";
 	(defined $cmr) or die "Error reading font\n";
 	print "Designsize: ", $cmr->designsize(), "\n";
 	print $cmr->width("A"), ", ", $cmr->kern('Wo'), "\n";
@@ -20,21 +20,21 @@ should print on the output
 
 =head1 DESCRIPTION
 
-Method C<TFM::new> creates a new TFM object in memory, loading
+Method C<Font::TFM::new> creates a new TFM object in memory, loading
 all the necessary information from the C<.tfm> file. Second (optional)
-parameter means scale. You can also use C<TFM::new_at> and as
+parameter means scale. You can also use C<Font::TFM::new_at> and as
 the second parameter put requested size in pt.
 
 List of comma separated directories to be searched is in variable
-C<$TFM::TEXFONTSDIR>. These are searched for given C<.tfm> file
-(extension C<.tfm> is optional in the call to C<TFM::new>).
-Variable C<$TFM::TEXFONTSUSELS> can be set to zero to disable
+C<$Font::TFM::TEXFONTSDIR>. These are searched for given C<.tfm> file
+(extension C<.tfm> is optional in the call to C<Font::TFM::new>).
+Variable C<$Font::TFM::TEXFONTSUSELS> can be set to zero to disable
 using ls-R files. If it is kept equal to 1, once it finds file with
-name C<$TFM::LSFILENAME>, it doesn't search through the
+name C<$Font::TFM::LSFILENAME>, it doesn't search through the
 subdirectories and only uses info in this file fo find the C<.tfm>
 file.
 
-These are the methods available on the C<TFM> object:
+These are the methods available on the C<Font::TFM> object:
 
 =over
 
@@ -67,7 +67,7 @@ Returns the parameter of the font.
 Dimensions are already multiplied by 65536 * actual size of the font,
 so you can use them directly when writing the C<.dvi> file.
 
-Variable C<$TFM::DEBUG> may be set to 1 to get the processing messages
+Variable C<$Font::TFM::DEBUG> may be set to 1 to get the processing messages
 on the standard error output.
 
 =cut
@@ -285,11 +285,11 @@ sub find_tfm_file
 	{
 	my $fontname = shift;
 	$fontname .= ".tfm" unless $fontname =~ /\.tfm$/;
-	print STDERR "TFM::find_tfm_file: \$fontname = $fontname\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file: \$fontname = $fontname\n" if $DEBUG;
 	my $directory;
 	for $directory (split /:/, $TEXFONTSDIR)
 		{
-		print STDERR "TFM::find_tfm_file: \$directory = $directory\n" if $DEBUG;
+		print STDERR "Font::TFM::find_tfm_file: \$directory = $directory\n" if $DEBUG;
 		my $file = find_tfm_file_in_directory($fontname, $directory);
 		return $file if $file;
 		}
@@ -299,7 +299,7 @@ sub find_tfm_file_in_directory
 	my ($fontname, $directory) = @_;
 	my $tfmfile = "$directory/$fontname";
 	my $lsfile = "$directory/$LSFILENAME";
-	print STDERR "TFM::find_tfm_file_in_directory: \$directory = $directory\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file_in_directory: \$directory = $directory\n" if $DEBUG;
 	if (-f $tfmfile)
 		{
 		return $tfmfile;
@@ -326,8 +326,8 @@ sub find_tfm_file_in_ls
 	my ($fontname, $lsfile) = @_;
 	my $lsdir = $lsfile;
 	$lsdir =~ s!/$LSFILENAME$!!;
-	print STDERR "TFM::find_tfm_file_in_ls: \$lsfile = $lsfile\n" if $DEBUG;
-	print STDERR "TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsfile = $lsfile\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if $DEBUG;
 	if (not open LSFILE, $lsfile)
 		{
 		print STDERR "Error reading $lsfile: $!\n" if $DEBUG;
@@ -341,7 +341,7 @@ sub find_tfm_file_in_ls
 			{
 			$lsdir = $_;
 			$lsdir =~ s!:$!!;
-			print STDERR "TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if ($DEBUG > 10);
+			print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if ($DEBUG > 10);
 			}
 		elsif ($_ eq $fontname)
 			{
