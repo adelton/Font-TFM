@@ -29,7 +29,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = '0.130';
+$VERSION = '0.150';
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -441,12 +441,30 @@ sub expand {
 }
 
 
-my %PARAM_NAMES = ( slant => 1, space => 2, space_stretch => 3,
-	space_shrink => 4, x_height => 5, em_width => 6, quad => 6,
-	extra_space => 7 );
-my @GENERAL_NAMES = qw( fontsize designsize name checksum );
+my %PARAM_NAMES = ( slant => 1, space => 2, spacestretch => 3,
+	spaceshrink => 4, xheight => 5, emwidth => 6, quad => 6,
+	extraspace => 7,
+);
+my @GENERAL_NAMES = qw( fontsize designsize name checksum codingscheme );
 my @CHAR_NAMES = qw( width height depth italic );
 my %WORD_NAMES = ( word_width => 0, word_height => 1, word_depth => 2 );
+my %MATH_SY_NAMES = ( num1 => 8, num2 => 9, num3 => 10,
+	denom1 => 11, denom2 => 12,
+	sup1 => 13, sup2 => 14, sup3 => 15,
+	sub1 => 16, sub2 => 17,
+	supdrop => 18,
+	subdrop => 19,
+	delim1 => 20, delim2 => 21,
+	axisheight => 22,
+);
+my %MATH_EX_NAMES = (
+	defaultrulethickness => 8,
+	bigopspacing1 => 9,
+	bigopspacing2 => 10,
+	bigopspacing3 => 11,
+	bigopspacing4 => 12,
+	bigopspacing5 => 13,
+);
 
 use vars qw( $AUTOLOAD );
 sub AUTOLOAD {
@@ -454,6 +472,7 @@ sub AUTOLOAD {
 	my $function = $AUTOLOAD;
 	local ($_);
 	$function =~ s/^.*:://;
+	$function =~ s/_//g;
 	print STDERR "Autoloading $function\n" if DEBUG;
 	return ($self->word_dimensions(shift))[$WORD_NAMES{$function}]
 		if defined $WORD_NAMES{$function};
@@ -463,6 +482,14 @@ sub AUTOLOAD {
 		if grep { $_ eq $function } @CHAR_NAMES;
 	return $self->{$function}
 		if grep { $_ eq $function } @GENERAL_NAMES;
+	if ($self->{codingscheme} eq 'TeX math symbols'
+		and defined $MATH_SY_NAMES{$function}) {
+		return $self->{'param'}[$MATH_SY_NAMES{$function}]
+	}
+	if ($self->{codingscheme} eq 'TeX math extension'
+		and defined $MATH_EX_NAMES{$function}) {
+		return $self->{'param'}[$MATH_EX_NAMES{$function}]
+	}
 	die "Method $function not defined for $self";
 }
 
@@ -580,6 +607,12 @@ Returns the design size and the actual size of the font in pt.
 	$cmr->fontsize;			10
 	$cmr10_12->fontsize;		12
 
+=item coding_scheme
+
+Returns the coding scheme of the font.
+
+	$cmr->coding_scheme;	returns TeX text
+
 =item width, height, depth, italic
 
 Returns the requested dimension for a specified character of
@@ -644,6 +677,17 @@ Returns the parameter of the font, by name.
 	$cmtt10->space()		344061.25
 	$cmtt10->space_stretch()	0
 
+=item Additional parameters for math fonts
+
+When the coding scheme of the font is TeX math symbols, there are
+additional parameters num1 to num2, denom1 and denom2, sup1 to sup3,
+sub1 and sub2, supdrop and subdrop, delim1 and delim2, and
+axis_height available.
+
+When the coding scheme is TeX math extension, there are additional
+parameters default_rule_thickness and big_op_spacing1 through
+big_op_spacing5.
+
 =item name
 
 Returns the name of the font.
@@ -655,19 +699,20 @@ messages on the standard error output.
 
 The module is subclassable. You can define you own module that would
 provide alternate way of finding and opening the file. Just make new
-module and defined your own method open_tfm in it.
+module and define your own method open_tfm in it.
 
 =head1 VERSION
 
-0.130
+0.150
 
 =head1 SEE ALSO
 
-TeX::DVI(3), TeX::DVI::Parse(3), perl(1).
+TFtoPL for description of the TFM format, TeX::DVI(3),
+TeX::DVI::Parse(3).
 
 =head1 AUTHOR
 
-(c) 1996--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1996--2004 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/
 at Faculty of Informatics, Masaryk University, Brno, Czech Republic
 

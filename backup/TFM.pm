@@ -3,7 +3,7 @@
 #
 
 package Font::TFM;
-$VERSION = 0.130;
+$VERSION = 0.150;
 
 # Zero so that require fails.
 

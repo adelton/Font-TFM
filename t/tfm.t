@@ -1,6 +1,7 @@
 
+use strict;
 
-BEGIN { $| = 1; print "1..12\n"; }
+BEGIN { $| = 1; print "1..23\n"; }
 END {print "not ok 1\n" unless $::loaded_tfm;}
 
 
@@ -85,4 +86,99 @@ print "Got $width2\n";
 
 print "not " if $width2 != 638977.625;
 print "ok 12\n";
+
+print "Calling ->num1 on cmr10 should fail\n";
+eval { $cmr->num1 };
+print "not " unless $@;
+print "ok 13\n";
+
+print "Loading cmsy10\n";
+my $cmsy = new Font::TFM "cmsy10" or
+	do { print $Font::TFM::errstr, 'not '; };
+print "ok 14\n";
+
+print "Checking num1 on cmsy10\n";
+my $num1 = eval { $cmsy->num1 };
+if ($@) {
+	print "Failed with [$@]\n";
+	print "not ";
+} elsif (not defined $num1) {
+	print "Value not defined\n";
+	print "not ";
+} elsif ($num1 != 443356.25) {
+	print "Got $num1\n";
+	print "not ";
+}
+print "ok 15\n";
+
+print "Checking supdrop on cmsy10\n";
+my $supdrop = eval { $cmsy->supdrop };
+if ($@) {
+	print "Failed with [$@]\n";
+	print "not ";
+} elsif (not defined $supdrop) {
+	print "Value not defined\n";
+	print "not ";
+} elsif ($supdrop != 253040) {
+	print "Got $supdrop\n";
+	print "not ";
+}
+print "ok 16\n";
+
+print "Calling ->default_rule_thickness on cmsy10 should fail\n";
+eval { $cmr->default_rule_thickness };
+print "not " unless $@;
+print "ok 17\n";
+
+print "Loading cmex10\n";
+my $cmex = new Font::TFM "cmex10" or
+	do { print $Font::TFM::errstr, 'not '; };
+print "ok 18\n";
+
+print "Checking defaultrulethickness on cmex10\n";
+my $defaultrulethickness = eval { $cmex->defaultrulethickness };
+if ($@) {
+	print "Failed with [$@]\n";
+	print "not ";
+} elsif (not defined $defaultrulethickness) {
+	print "Value not defined\n";
+	print "not ";
+} elsif ($defaultrulethickness != 26213.75) {
+	print "Got $defaultrulethickness\n";
+	print "not ";
+}
+print "ok 19\n";
+
+print "Checking bigopspacing3 on cmex10\n";
+my $bigopspacing3 = eval { $cmex->bigopspacing3 };
+if ($@) {
+	print "Failed with [$@]\n";
+	print "not ";
+} elsif (not defined $bigopspacing3) {
+	print "Value not defined\n";
+	print "not ";
+} elsif ($bigopspacing3 != 131071.875) {
+	print "Got $bigopspacing3\n";
+	print "not ";
+}
+print "ok 20\n";
+
+print "Checking x_height on cmex10\n";
+my $xh = $cmex->x_height;
+print "Got $xh\n";
+print "not " unless $xh == 282168.75;
+print "ok 21\n";
+
+print "Checking xheight on cmex10\n";
+$xh = $cmex->xheight;
+print "Got $xh\n";
+print "not " unless $xh == 282168.75;
+print "ok 22\n";
+
+print "Checking coding_scheme on cmex10\n";
+my $coding_scheme = $cmex->coding_scheme;
+print "Got $coding_scheme\n";
+print "not " unless $coding_scheme eq 'TeX math extension';
+print "ok 23\n";
+
 

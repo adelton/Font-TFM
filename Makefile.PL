@@ -1,7 +1,7 @@
 
 use ExtUtils::MakeMaker;
 
-my $dir = '.:/packages/share/tex/lib/fonts';
+my $dir = '.';
 
 eval 'use Font::TFM';
 if ($@ eq '' and defined $Font::TFM::TEXFONTSDIR) {
@@ -12,7 +12,7 @@ EOF
 	$dir = $Font::TFM::TEXFONTSDIR;
 }
 
-$dir = prompt "Where should I search for tfm files (value of \$Font::TFM::TEXFONTSDIR)\n", $dir;
+$dir = prompt "The search path for tfm files (value of \$Font::TFM::TEXFONTSDIR)\n", $dir;
 
 
 sub MY::processPL {

@@ -1,6 +1,9 @@
 
 Revision history for module Font::TFM.
 
+0.150-test
+	Added support for TeX math font parameter names.
+
 0.130 Tue Oct  2 16:38:49 MET DST 2001
 	Changed the interface to method new, adding file option, as
 	well as options to override the global defaults. One- and
