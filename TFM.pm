@@ -1,6 +1,4 @@
 
-package Font::TFM;
-
 =head1 NAME
 
 Font::TFM -- read and work with TeX font metric files
@@ -8,6 +6,8 @@ Font::TFM -- read and work with TeX font metric files
 =head1 SYNOPSIS
 
 	use Font::TFM;  
+	### $Font::TFM::TEXFONTSDIR = "your directories";
+
 	my $cmr = new Font::TFM "cmr10";
 	(defined $cmr) or die "Error reading font\n";
 	print "Designsize: ", $cmr->designsize(), "\n";
@@ -16,7 +16,7 @@ Font::TFM -- read and work with TeX font metric files
 should print on the output
 
 	Designsize: 10
-	491513.749980927, -54612.9166603088
+	491521.25, -54613.75
 
 =head1 DESCRIPTION
 
@@ -93,13 +93,18 @@ messages on the standard error output.
 
 =cut
 
+package Font::TFM;
+use strict;
+use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
+	$LSFILENAME $MULTIPLY );
+
 # ################
 # Global variables
 #
-$VERSION = 0.04;
+$VERSION = 0.05;
 
 $DEBUG = 0;
-sub DEBUG	{ $DEBUG; }
+sub DEBUG ()	{ $DEBUG; }
 
 $TEXFONTSDIR = "/packages/share/tex/lib";
 $TEXFONTSUSELS = 1;
@@ -169,11 +174,14 @@ sub new
 	close TFMFILE;
 
 	my $headerrestlength = $self->{headerlength} - 18 * 4;
-	
+
+	my ($face, $headerrest, @charinfo, @width, @height, @depth,
+		@italic, @ligkern, @kern, @exten);
+
 	# split the file into various arrays
 	(@{$self}{ qw(checksum designsize codingschemestringlength
 		codingscheme familystringlength family sevenbitsafe ) },
-	$ignore, $ignore, $face,
+	undef, undef, $face,
 	$headerrest,
 	@charinfo[0 .. $self->{numofchars} - 1],
 	@width[0 .. $self->{numwidth} - 1],
@@ -241,7 +249,7 @@ sub new
 		if ($skip == 255)
 			{
 			process_lig_kern($self, "boundary", \@ligkern,
-				256 * $opbyte + $remainder);
+				256 * $opbyte + $remainder, \@kern);
 			}
 		}
 
@@ -260,7 +268,7 @@ sub new
 		my $tag = $italtag & 0x03;	# other info
 		if ($tag == 1)			# lig/kern program
 			{
-			process_lig_kern($self, $char, \@ligkern, $remainder);
+			process_lig_kern($self, $char, \@ligkern, $remainder, \@kern);
 			}
 		elsif ($tag == 2)		# larger character
 			{
@@ -283,7 +291,7 @@ sub new
 #
 sub process_lig_kern
 	{
-	my ($self, $char, $ligkernref, $prognum) = @_;
+	my ($self, $char, $ligkernref, $prognum, $kernref) = @_;
 	my $firstinstr = 1;
 	while (1)
 		{
@@ -301,7 +309,7 @@ sub process_lig_kern
 		if ($opbyte >= 128)
 			{
 			$self->{kern}{$char . $nextchar}
-				= $kern[ 256 * ($opbyte - 128) + $remainder];
+				= $kernref->[ 256 * ($opbyte - 128) + $remainder];
 			}
 		else
 			{
@@ -495,18 +503,21 @@ sub expand
 	}
 
 
-%PARAM_NAMES = ( slant => 1, space => 2, space_stretch => 3,
+my %PARAM_NAMES = ( slant => 1, space => 2, space_stretch => 3,
 	space_shrink => 4, x_height => 5, em_width => 6, quad => 6,
 	extra_space => 7 );
-@GENERAL_NAMES = qw( fontsize designsize name checksum );
-@CHAR_NAMES = qw( width height depth italic );
-%WORD_NAMES = ( word_width => 0, word_height => 1, word_depth => 2 );
+my @GENERAL_NAMES = qw( fontsize designsize name checksum );
+my @CHAR_NAMES = qw( width height depth italic );
+my %WORD_NAMES = ( word_width => 0, word_height => 1, word_depth => 2 );
 
+use vars qw( $AUTOLOAD );
 sub AUTOLOAD
 	{
 	my $self = shift;
 	my $function = $AUTOLOAD;
+	local ($_);
 	$function =~ s/^.*:://;
+	print STDERR "Autoloading $function\n" if DEBUG;
 	return ($self->word_dimensions(shift))[$WORD_NAMES{$function}]
 		if defined $WORD_NAMES{$function};
 	return $self->{'param'}[$PARAM_NAMES{$function}]
@@ -523,6 +534,10 @@ sub Version	{ $VERSION; }
 =head1 CHANGES
 
 =over
+
+=item 0.05 Tue Aug 19 10:09:27 MET DST 1997
+
+Minor bug fixes. Module made use strict clean. Tests added.
 
 =item 0.04 Wed Apr  9 10:20:10 MET DST 1997
 
@@ -552,11 +567,11 @@ First version released/announced on public.
 
 =head1 VERSION
 
-0.04
+0.05
 
 =head1 SEE ALSO
 
-TeX::DVI(3), perl(1).
+TeX::DVI(3), TeX::DVI::Parse(3), perl(1).
 
 =head1 AUTHOR
 

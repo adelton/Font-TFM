@@ -1,5 +1,7 @@
-CHANGES
+Changes
 MANIFEST
 Makefile.PL
 README
 TFM.pm
+cmr10.tfm
+t/tfm.t

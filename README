@@ -8,26 +8,32 @@ Installation:
 
 	perl Makefile.PL
 	make
+	make test
 	make install
 
 Use:
-
 	use Font::TFM;  
 	my $cmr = new Font::TFM "cmr10";
 	print $cmr->width("A"), ", ", $cmr->kern('Wo'), "\n";
-
-Todo list:
-
-	Tests.
 
 Available:
 
 	http://www.fi.muni.cz/~adelton/perl/ and on your favorite CPAN
 	site (http://www.perl.com/perl/CPAN/).
 
+Todo:
+	The module should somehow figure out the local setting of
+	TEXFONTSDIR. Or should we ask user for the correct value?
+
 Copyright:
 
 	(c) 1996, 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This module is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself. 
+
+Ideas, bug reports:
+
+	Please send any comments or bug reports concerning this module
+	to my e-mail address. I read the newsgroups but might miss
+	your post.
 

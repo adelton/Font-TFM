@@ -1,4 +1,8 @@
+
 Revision history for module Font::TFM.
+
+0.05 Tue Aug 19 10:09:27 MET DST 1997
+	Minor bug fixes. Module made use strict clean. Tests added.
 
 0.04 Wed Apr  9 10:20:10 MET DST 1997
 	Font::TFM::word_dimensions added, Font::TFM::word_width and
@@ -13,10 +17,11 @@ Revision history for module Font::TFM.
 0.03 Sun Feb 16 13:55:26 MET 1997
 	Font::TFM::expand added to provide lig/kern expansion.
 
-	Font::TFM::word_width added to measure width of word on
-	output.
+	Font::TFM::word_width added to measure width of word on output.
 
-	Font::TFM::em_width and Font::TFM::name added.
+	Font::TFM::em_width and TFM::name added.
+
+	Name Font::TFM set up instead of TFM.
 
 0.02 Thu Feb 13 20:43:38 MET 1997
 	First version released/announced on public.
