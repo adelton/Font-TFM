@@ -28,7 +28,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = 0.073;
+$VERSION = 0.074;
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -168,7 +168,7 @@ sub new
 			@{$self->{param}}[2 .. $self->{numparam}];
 					# compute the actual dimensions
 
-	if (defined @ligkern)		# check for boundary char
+	if (@ligkern)		# check for boundary char
 		{
 		my ($skip, $next, $opbyte, $remainder);
 		($skip, $next) = unpack "CA1", $ligkern[0];
@@ -458,7 +458,7 @@ sub AUTOLOAD
 	}
 
 sub Version	{ $VERSION; }
-
+sub DESTROY {}
 1;
 
 __END__
@@ -593,7 +593,7 @@ messages on the standard error output.
 
 =head1 VERSION
 
-0.073
+0.074
 
 =head1 SEE ALSO
 

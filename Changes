@@ -1,6 +1,10 @@
 
 Revision history for module Font::TFM.
 
+0.074 Sun Apr  2 16:36:25 MET DST 2000
+	Removed (defined array) and added DESTROY, 5.6 seems to
+	like that.
+
 0.073 Thu Dec  3 14:48:27 MET 1998
 	Added binmode, found by Randy Kobes.
 
