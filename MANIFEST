@@ -3,5 +3,7 @@ MANIFEST
 Makefile.PL
 README
 TFM.pm.PL
+backup/TFM.pm
+backup/TFM.pm.src
 cmr10.tfm
 t/tfm.t

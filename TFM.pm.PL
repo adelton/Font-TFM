@@ -28,7 +28,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = 0.07;
+$VERSION = 0.072;
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }

@@ -13,8 +13,7 @@ EOF
 	$dir = $Font::TFM::TEXFONTSDIR;
 	}
 
-$dir = prompt "Where should I search for tfm files (value of \$Font::TFM::TEXFONTSDIR)\n",
-		$dir;
+$dir = prompt "Where should I search for tfm files (value of \$Font::TFM::TEXFONTSDIR)\n", $dir;
 
 
 sub MY::processPL
@@ -25,13 +24,27 @@ sub MY::processPL
 	$inherited;
 	}
 
+sub MY::postamble
+	{
+	my $src = MM->catfile('backup', 'TFM.pm.src');
+	my $dest = MM->catfile('backup', 'TFM.pm');
+qq!$dest : Makefile
+	\$\(PERL\) -pe 's/^\\\$\$VERSION = .*/\\\$\$VERSION = \$(VERSION);/' $src > $dest
+!
+	}
+
 WriteMakefile(
 	'NAME'	=>	'Font::TFM',
 	'VERSION_FROM' =>	'TFM.pm.PL',
 	'PL_FILES' =>	{ 'TFM.pm.PL' => 'TFM.pm' },
 	'PM' =>		{ 'TFM.pm' => '$(INST_LIBDIR)/TFM.pm' },
-	'dist'	=>	{ COMPRESS => 'gzip -9f', SUFFIX   => '.gz',
-		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
+	'clean' =>	{ FILES => 'TFM.pm' },
+	'dist'	=>	{
+			COMPRESS =>	'gzip -9f',
+			SUFFIX =>	'.gz',
+			DIST_DEFAULT =>	'backup/TFM.pm tardist',
+			POSTOP =>	'mv $(DISTNAME)-$(VERSION).tar.gz ../'
+			},
 	);
 
 

@@ -1,6 +1,9 @@
 
 Revision history for module Font::TFM.
 
+0.072 Mon Sep 14 12:59:27 MET DST 1998
+	Fixed problem with .PL, inspired by Graham Barr.
+
 0.06 Sun Aug  9 14:30:30 MET DST 1998
 	Added a way to specify the TEXFONTSDIR during installation,
 	man page extended.
