@@ -28,7 +28,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = 0.06;
+$VERSION = 0.07;
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -592,7 +592,7 @@ messages on the standard error output.
 
 =head1 VERSION
 
-0.06
+0.07
 
 =head1 SEE ALSO
 
@@ -603,5 +603,7 @@ TeX::DVI(3), TeX::DVI::Parse(3), perl(1).
 (c) 1996--1998 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/
 at Faculty of Informatics, Masaryk University, Brno, Czech Republic
+
+=cut
 
 EOF
