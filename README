@@ -1,0 +1,17 @@
+
+Module TFM: read and work with TeX font metric files
+
+Installation:
+
+perl Makefile.PL
+make
+make install
+
+Todo list:
+
+Tests.
+
+Copyright (c) 1996, 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
+reserved. This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. 
+
