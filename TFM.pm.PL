@@ -28,7 +28,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = 0.072;
+$VERSION = 0.073;
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -77,6 +77,7 @@ sub new
 	print STDERR "Loading $filename\n" if DEBUG;
 	open TFMFILE, $filename or
 		do { Error("Error opening $filename: $!"); return; };
+	binmode TFMFILE;
 
 	# make the object
 	my $self = {};
@@ -592,7 +593,7 @@ messages on the standard error output.
 
 =head1 VERSION
 
-0.07
+0.073
 
 =head1 SEE ALSO
 

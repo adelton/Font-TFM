@@ -1,6 +1,9 @@
 
 Revision history for module Font::TFM.
 
+0.073 Thu Dec  3 14:48:27 MET 1998
+	Added binmode, found by Randy Kobes.
+
 0.072 Mon Sep 14 12:59:27 MET DST 1998
 	Fixed problem with .PL, inspired by Graham Barr.
 
