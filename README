@@ -1,17 +1,33 @@
 
-Module Font::TFM: read and work with TeX font metric files
+Module Font::TFM:
+
+	Read and work with TeX font metric information, stored in .tfm
+	files.
 
 Installation:
 
-perl Makefile.PL
-make
-make install
+	perl Makefile.PL
+	make
+	make install
+
+Use:
+
+	use Font::TFM;  
+	my $cmr = new Font::TFM "cmr10";
+	print $cmr->width("A"), ", ", $cmr->kern('Wo'), "\n";
 
 Todo list:
 
-Tests.
+	Tests.
 
-Copyright (c) 1996, 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
-reserved. This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. 
+Available:
+
+	http://www.fi.muni.cz/~adelton/perl/ and on your favorite CPAN
+	site (http://www.perl.com/perl/CPAN/).
+
+Copyright:
+
+	(c) 1996, 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
+	reserved. This module is free software; you can redistribute
+	it and/or modify it under the same terms as Perl itself. 
 

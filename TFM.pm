@@ -57,10 +57,16 @@ number of characters to pass over after the ligature.
 One string parameter undergoes ligature expansion and then kernings
 are inserted. Returns array of string, kern, string, ...
 
-=item word_width
+=item word_dimensions
 
-Measures the width of a word. Does the lig/kern expansion, so the
-result is the real width it will take it on output.
+Returns the width, height and depth of a word. Does the lig/kern
+expansion, so the result is the real space it will take on output.
+
+=item word_width, word_height, word_depth
+
+Calls C<word_dimensions> and returns appropriate element. No caching
+is done, so it is better to call C<word_dimensions> yourself if you
+will need more than one dimension of one word.
 
 =item param
 
@@ -78,24 +84,30 @@ Returns the name of the font.
 
 =back
 
-Dimensions are already multiplied by 65536 * actual size of the font,
-so you can use them directly when writing the C<.dvi> file.
+Dimensions are multiplied by C<$Font::TFM::MULTIPLY> * actual size
+of the font. Value of C<$Font::TFM::MULTIPLY> defaults to 65536, so
+the dimensions can be used directly when writing the C<.dvi> file.
 
-Variable C<$Font::TFM::DEBUG> may be set to 1 to get the processing messages
-on the standard error output.
+Variable C<$Font::TFM::DEBUG> may be set to 1 to get the processing
+messages on the standard error output.
 
 =cut
 
-$VERSION = 0.03;
+# ################
+# Global variables
+#
+$VERSION = 0.04;
 
 $DEBUG = 0;
+sub DEBUG	{ $DEBUG; }
 
 $TEXFONTSDIR = "/packages/share/tex/lib";
 $TEXFONTSUSELS = 1;
 $LSFILENAME = "ls-R";
+$MULTIPLY = 65536;
 
-#
-# load new font at size
+# #####################
+# Load new font at size
 #
 sub new_at
 	{
@@ -103,37 +115,44 @@ sub new_at
 	$size = -$size if ($size > 0);
 	new($class, $fontname, $size);
 	}
-#
-# load new font with scale
+
+# ########################
+# Load new font with scale
 #
 sub new
 	{
 	my ($class, $fontname, $fontscale) = @_;
-	$fontscale = 0 if (not defined $fontscale);
-					# positive is scale, negative size
+	
+	# $fontscale: positive is scale, negative size
+	$fontscale = 0 unless defined $fontscale;
 
+	# find the file
 	my $filename = find_tfm_file($fontname);
-	return unless $filename;		# find the file
+	return unless $filename;
 
-	print STDERR "Loading $filename\n" if $DEBUG;
-	if (! open TFMFILE, "$filename")	# try to open the file
+	# try to open the file
+	print STDERR "Loading $filename\n" if DEBUG;
+	if (! open TFMFILE, $filename)
 		{
-		print STDERR "Error reading $filename: $!\n" if $DEBUG;
+		print STDERR "Error reading $filename: $!\n" if DEBUG;
 		return;
 		}
-	
+
+	# make the object
 	my $self = {};
-	bless $self;			# make the object
+	bless $self;
 	$self->{name} = $fontname;	
 	$self->{name} =~ s/\.tfm$//;
 
+	# read header
 	my $buffer = '';
-	if (read(TFMFILE, $buffer, 24) != 24)	# read header
+	if (read(TFMFILE, $buffer, 24) != 24)
 		{
-		print STDERR "Error reading TFM begin: $!\n" if $DEBUG;
+		print STDERR "Error reading TFM begin: $!\n" if DEBUG;
 		return;
 		}
-					# get 12 fields of the header
+
+	# get 12 fields of the header
 	@{$self}{ qw(length headerlength smallest largest numwidth
 		numheight numdepth numic numligkern numkern numext numparam) }
 			= unpack "n12", $buffer;
@@ -141,7 +160,7 @@ sub new
 	$self->{'length'} = $self->{'length'} * 4 - 24;
 	$self->{headerlength} *= 4;
 
-					# read rest of the file
+	# read rest of the file
 	if (read(TFMFILE, $buffer, $self->{'length'}) != $self->{'length'})	
 		{
 		print STDERR "Error reading body: $!\n";
@@ -150,7 +169,8 @@ sub new
 	close TFMFILE;
 
 	my $headerrestlength = $self->{headerlength} - 18 * 4;
-					# split the file into various arrays
+	
+	# split the file into various arrays
 	(@{$self}{ qw(checksum designsize codingschemestringlength
 		codingscheme familystringlength family sevenbitsafe ) },
 	$ignore, $ignore, $face,
@@ -172,7 +192,7 @@ sub new
 			"N$self->{numkern}" .
 			"a4" x $self->{numext} .
 			"N$self->{numparam}", $buffer;
-					# the unpack above does all the work
+	# the unpack above does all the work
 	
 	$self->{designsize} = getfixword($self->{designsize});
 
@@ -180,7 +200,7 @@ sub new
 	$fontsize = -$fontscale if ($fontscale < 0);
 	$fontsize *= $fontscale if ($fontscale > 0);
 	$self->{fontsize} = $fontsize;
-	my $multiplysize = $fontsize * 65536;
+	my $multiplysize = $fontsize * $MULTIPLY;
 
 	if ($self->{sevenbitsafe})
 		{ $self->{sevenbitsafe} = 1; }
@@ -256,8 +276,9 @@ sub new
 		}
 	$self;
 	}
-#
-# process the ligature/kerning program for a character
+
+# ###################################################
+# Process the ligature/kerning program for a character
 #
 sub process_lig_kern
 	{
@@ -297,15 +318,18 @@ sub process_lig_kern
 		}
 	}
 
+# #################
+# Find the TFM file
+#
 sub find_tfm_file
 	{
 	my $fontname = shift;
 	$fontname .= ".tfm" unless $fontname =~ /\.tfm$/;
-	print STDERR "Font::TFM::find_tfm_file: \$fontname = $fontname\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file: \$fontname = $fontname\n" if DEBUG;
 	my $directory;
 	for $directory (split /:/, $TEXFONTSDIR)
 		{
-		print STDERR "Font::TFM::find_tfm_file: \$directory = $directory\n" if $DEBUG;
+		print STDERR "Font::TFM::find_tfm_file: \$directory = $directory\n" if DEBUG;
 		my $file = find_tfm_file_in_directory($fontname, $directory);
 		return $file if $file;
 		}
@@ -315,7 +339,7 @@ sub find_tfm_file_in_directory
 	my ($fontname, $directory) = @_;
 	my $tfmfile = "$directory/$fontname";
 	my $lsfile = "$directory/$LSFILENAME";
-	print STDERR "Font::TFM::find_tfm_file_in_directory: \$directory = $directory\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file_in_directory: \$directory = $directory\n" if DEBUG;
 	if (-f $tfmfile)
 		{
 		return $tfmfile;
@@ -342,11 +366,11 @@ sub find_tfm_file_in_ls
 	my ($fontname, $lsfile) = @_;
 	my $lsdir = $lsfile;
 	$lsdir =~ s!/$LSFILENAME$!!;
-	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsfile = $lsfile\n" if $DEBUG;
-	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if $DEBUG;
+	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsfile = $lsfile\n" if DEBUG;
+	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if DEBUG;
 	if (not open LSFILE, $lsfile)
 		{
-		print STDERR "Error reading $lsfile: $!\n" if $DEBUG;
+		print STDERR "Error reading $lsfile: $!\n" if DEBUG;
 		return;
 		}
 	local ($/) = "\n";
@@ -357,7 +381,7 @@ sub find_tfm_file_in_ls
 			{
 			$lsdir = $_;
 			$lsdir =~ s!:$!!;
-			print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if ($DEBUG > 10);
+			print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if (DEBUG > 10);
 			}
 		elsif ($_ eq $fontname)
 			{
@@ -365,12 +389,12 @@ sub find_tfm_file_in_ls
 			if (-f $file)
 				{
 				close LSFILE;
-				print STDERR "file $fontname found in $lsfile\n" if $DEBUG;
+				print STDERR "file $fontname found in $lsfile\n" if DEBUG;
 				return $file;
 				}
 			}
 		}
-	print STDERR "file $fontname not found in $lsfile\n" if $DEBUG;
+	print STDERR "file $fontname not found in $lsfile\n" if DEBUG;
 	return;
 	}
 sub getfixword
@@ -382,27 +406,6 @@ sub getfixword
 		$val = unpack "l", $p;
 		}
 	return ($val / (1 << 20));
-	}
-
-sub width
-	{
-	my ($self, $char) = @_;
-	$self->{width}{$char};
-	}
-sub height
-	{
-	my ($self, $char) = @_;
-	$self->{height}{$char};
-	}
-sub depth
-	{
-	my ($self, $char) = @_;
-	$self->{depth}{$char};
-	}
-sub italic
-	{
-	my ($self, $char) = @_;
-	$self->{italic}{$char};
 	}
 sub kern
 	{
@@ -425,87 +428,32 @@ sub ligpassover
 	my ($self, $double) = @_;
 	$self->{ligpassover}{$double};
 	}
-sub fontsize
-	{
-	my $self = shift;
-	$self->{fontsize};
-	}
-sub designsize
-	{
-	my $self = shift;
-	$self->{designsize};
-	}
 sub param
 	{
 	my ($self, $param) = @_;
 	$self->{param}[$param];
 	}
-sub slant
-	{
-	my $self = shift;
-	$self->param(1);
-	}
-sub space
-	{
-	my $self = shift;
-	$self->param(2);
-	}
-sub space_stretch
-	{
-	my $self = shift;
-	$self->param(3);
-	}
-sub space_shrink
-	{
-	my $self = shift;
-	$self->param(4);
-	}
-sub em_width
-	{
-	my $self = shift;
-	$self->quad();
-	}
-sub x_height
-	{
-	my $self = shift;
-	$self->param(5);
-	}
-sub quad
-	{
-	my $self = shift;
-	$self->param(6);
-	}
-sub extra_space
-	{
-	my $self = shift;
-	$self->param(7);
-	}
-sub name
-	{
-	my $self = shift;
-	$self->{name};
-	}
-sub checksum
-	{
-	my $self = shift;
-	$self->{checksum};
-	}
-sub word_width
+sub word_dimensions
 	{
 	my ($self, $text) = @_;
 	my @expanded = $self->expand($text);
-	my $width = 0;
+	my ($width, $height, $depth) = (0, 0, 0);
 	while (@expanded)
 		{
 		my $word = shift @expanded;
-		while ($word =~ /(.)/sg)
+		while ($word =~ /./sg)
 			{
-			$width += $self->width($1);
+			my $char = $&;
+			$width += $self->width($char);
+			my $newval = $self->height($char);
+			$height = $newval if ($newval > $height);
+			$newval = $self->depth($char);
+			$depth = $newval if ($newval > $depth);
 			}
                 last if (not @expanded);
 		$width += shift @expanded;
 		}
-	$width;
+	($width, $height, $depth);
 	}
 sub expand
 	{
@@ -545,15 +493,45 @@ sub expand
 	@out;
 	}
 
-sub Version
+
+%PARAM_NAMES = ( slant => 1, space => 2, space_stretch => 3,
+	space_shrink => 4, x_height => 5, em_width => 6, quad => 6,
+	extra_space => 7 );
+@GENERAL_NAMES = qw( fontsize designsize name checksum );
+@CHAR_NAMES = qw( width height depth italic );
+%WORD_NAMES = ( word_width => 0, word_height => 1, word_depth => 2 );
+
+sub AUTOLOAD
 	{
 	my $self = shift;
-	$VERSION;
+	my $function = $AUTOLOAD;
+	$function =~ s/^.*:://;
+	return ($self->word_dimensions(shift))[$WORD_NAMES{$function}]
+		if defined $WORD_NAMES{$function};
+	return $self->{'param'}[$PARAM_NAMES{$function}]
+		if (defined $PARAM_NAMES{$function});
+	return $self->{$function}{$_[0]}
+		if grep { $_ eq $function } @CHAR_NAMES;
+	return $self->{$function}
+		if grep { $_ eq $function } @GENERAL_NAMES;
+	die "Method $function not defined for $self";
 	}
+
+sub Version	{ $VERSION; }
 
 =head1 CHANGES
 
 =over
+
+=item 0.04 Wed Apr  9 10:20:10 MET DST 1997
+
+C<Font::TFM::word_dimensions> added, C<Font::TFM::word_width> and new
+C<Font::TFM::word_height> and C<Font::TFM::word_depth> now call it.
+
+C<Font::TFM::MULTIPLY> added, still defaults do 65535.
+
+Module made faster, also uses C<AUTOLOAD> for many things.
+Minor bug fixes.
 
 =item 0.03 Sun Feb 16 13:55:26 MET 1997
 
@@ -563,7 +541,7 @@ C<Font::TFM::word_width> added to measure width of word on output.
 
 C<Font::TFM::em_width> and C<TFM::name> added.
 
-Name C<Font::TFM> set up instead of C<Font>.
+Name C<Font::TFM> set up instead of C<TFM>.
 
 =item 0.02 Thu Feb 13 20:43:38 MET 1997
 
@@ -573,11 +551,11 @@ First version released/announced on public.
 
 =head1 VERSION
 
-0.03
+0.04
 
 =head1 SEE ALSO
 
-DVI, perl(1).
+TeX::DVI(3), perl(1).
 
 =head1 AUTHOR
 

@@ -1,5 +1,15 @@
 Revision history for module Font::TFM.
 
+0.04 Wed Apr  9 10:20:10 MET DST 1997
+	Font::TFM::word_dimensions added, Font::TFM::word_width and
+	new Font::TFM::word_height and Font::TFM::word_depth now call
+	it.
+
+	Font::TFM::MULTIPLY added, still defaults do 65535.
+
+	Module made faster, also uses AUTOLOAD for many things. Minor
+	bug fixes.
+
 0.03 Sun Feb 16 13:55:26 MET 1997
 	Font::TFM::expand added to provide lig/kern expansion.
 
