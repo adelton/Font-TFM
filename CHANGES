@@ -1,5 +1,13 @@
 Revision history for module Font::TFM.
 
+0.03 Sun Feb 16 13:55:26 MET 1997
+	Font::TFM::expand added to provide lig/kern expansion.
+
+	Font::TFM::word_width added to measure width of word on
+	output.
+
+	Font::TFM::em_width and Font::TFM::name added.
+
 0.02 Thu Feb 13 20:43:38 MET 1997
 	First version released/announced on public.
 

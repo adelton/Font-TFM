@@ -52,15 +52,29 @@ the font.
 For a two-letter string returns kern between them, ligature formed and
 number of characters to pass over after the ligature.
 
+=item expand
+
+One string parameter undergoes ligature expansion and then kernings
+are inserted. Returns array of string, kern, string, ...
+
+=item word_width
+
+Measures the width of a word. Does the lig/kern expansion, so the
+result is the real width it will take it on output.
+
 =item param
 
 Returns parameter of the font, indexed from 1.
 
-=item slant, x_height, quad
+=item slant, x_height, em_width, quad
 
 =item space, space_stretch, space_shrink, extra_space
 
 Returns the parameter of the font.
+
+=item name
+
+Returns the name of the font.
 
 =back
 
@@ -72,7 +86,7 @@ on the standard error output.
 
 =cut
 
-$VERSION = 0.02;
+$VERSION = 0.03;
 
 $DEBUG = 0;
 
@@ -110,6 +124,8 @@ sub new
 	
 	my $self = {};
 	bless $self;			# make the object
+	$self->{name} = $fontname;	
+	$self->{name} =~ s/\.tfm$//;
 
 	my $buffer = '';
 	if (read(TFMFILE, $buffer, 24) != 24)	# read header
@@ -444,6 +460,11 @@ sub space_shrink
 	my $self = shift;
 	$self->param(4);
 	}
+sub em_width
+	{
+	my $self = shift;
+	$self->quad();
+	}
 sub x_height
 	{
 	my $self = shift;
@@ -459,10 +480,69 @@ sub extra_space
 	my $self = shift;
 	$self->param(7);
 	}
+sub name
+	{
+	my $self = shift;
+	$self->{name};
+	}
 sub checksum
 	{
 	my $self = shift;
 	$self->{checksum};
+	}
+sub word_width
+	{
+	my ($self, $text) = @_;
+	my @expanded = $self->expand($text);
+	my $width = 0;
+	while (@expanded)
+		{
+		my $word = shift @expanded;
+		while ($word =~ /(.)/sg)
+			{
+			$width += $self->width($1);
+			}
+                last if (not @expanded);
+		$width += shift @expanded;
+		}
+	$width;
+	}
+sub expand
+	{
+	my ($self, $text) = @_;
+	my $pos = 0;
+	
+	# ligature substitutions
+	while ($pos < (length $text) - 1)
+		{
+		my $found;
+		my $substr = substr $text, $pos, 2;
+		$found = $self->lig(substr $text, $pos, 2);
+		if (defined $found)
+			{
+			substr($text, $pos, 2) = $found;
+			$pos += $self->ligpassover($substr);
+			}
+		else
+			{ $pos++ }
+
+		}
+
+	# kerning processing
+	my @out = ();
+	my $currentstring = substr $text, 0, 1;
+	while ($text =~ /(.)(?=(.))/gs)
+		{
+		if ($self->kern($1 . $2))
+			{
+			push @out, $currentstring;
+			$currentstring = '';
+			push @out, $self->kern($1 . $2);
+			}
+		$currentstring .= $2
+		}
+	push @out, $currentstring;
+	@out;
 	}
 
 sub Version
@@ -475,6 +555,16 @@ sub Version
 
 =over
 
+=item 0.03 Sun Feb 16 13:55:26 MET 1997
+
+C<Font::TFM::expand> added to provide lig/kern expansion.
+
+C<Font::TFM::word_width> added to measure width of word on output.
+
+C<Font::TFM::em_width> and C<TFM::name> added.
+
+Name C<Font::TFM> set up instead of C<Font>.
+
 =item 0.02 Thu Feb 13 20:43:38 MET 1997
 
 First version released/announced on public.
@@ -483,7 +573,7 @@ First version released/announced on public.
 
 =head1 VERSION
 
-0.02
+0.03
 
 =head1 SEE ALSO
 
