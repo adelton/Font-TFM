@@ -29,7 +29,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = '0.110';
+$VERSION = '0.130';
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -38,7 +38,11 @@ sub Error {
 	print STDERR @_, "\n" if $DEBUG;
 }
 
-$TEXFONTSDIR = '.:/packages/share/tex/lib/fonts';
+EOF
+
+print OUT qq!\$TEXFONTSDIR = '$dir';\n!;
+
+print OUT <<'EOF';
 $TEXFONTSUSELS = 1;
 $LSFILENAME = "ls-R";
 $MULTIPLY = 65536;
@@ -48,30 +52,34 @@ $MULTIPLY = 65536;
 #
 sub new_at {
 	my ($class, $fontname, $size) = @_;
-	$size = -$size if ($size > 0);
-	new($class, $fontname, $size);
+	new($class, 'name' => $fontname, 'at' => $size);
 }
 
 # ########################
 # Load new font with scale
 #
 sub new {
-	my ($class, $fontname, $fontscale) = @_;
+	my $class = shift;
+	my %opts = ();
+	if (@_ > 2 or (@_ == 2 and $_[1] !~ /^(\d*\.)?\d+$/)) {
+		if (@_ % 2) {
+			$opts{name} = shift;
+		}
+		%opts = @_;
+	} else {
+		@opts{'name', 'scale'} = @_;
+	}
 	
 	# make the object
-	my $self = {};
-	bless $self, $class;
+	my $self = bless {}, $class;
 
 	my ($file_handle);
 	eval {
-		$file_handle = $self->open_tfm($fontname);
+		$file_handle = $self->open_tfm(%opts);
 	};
 	if ($@) {
 		Error($@); return;
 	}
-
-	# $fontscale: positive is scale, negative size
-	$fontscale = 0 unless defined $fontscale;
 
 	# read header
 	my $buffer = '';
@@ -121,15 +129,19 @@ sub new {
 			"N$self->{numkern}" .
 			"a4" x $self->{numext} .
 			"N$self->{numparam}", $buffer;
-	# the unpack above does all the work
+	# the unpack above does all the work, isn't it neat?
 	
 	$self->{designsize} = getfixword($self->{designsize});
 
 	my $fontsize = $self->{designsize};
-	$fontsize = -$fontscale if ($fontscale < 0);
-	$fontsize *= $fontscale if ($fontscale > 0);
+	if (defined $opts{at}) {
+		$fontsize = $opts{at};
+	} elsif (defined $opts{scale}) {
+		$fontsize *= $opts{scale};
+	}
 	$self->{fontsize} = $fontsize;
-	my $multiplysize = $fontsize * $MULTIPLY;
+	my $multiplysize = $fontsize * 
+		( defined $opts{'multiply'} ? $opts{'multiply'} : $MULTIPLY );
 
 	if ($self->{sevenbitsafe}) {
 		$self->{sevenbitsafe} = 1;
@@ -161,12 +173,12 @@ sub new {
 
 	if (@ligkern) {		# check for boundary char
 		my ($skip, $next, $opbyte, $remainder);
-		($skip, $next) = unpack "CA1", $ligkern[0];
+		($skip, $next) = unpack "Ca1", $ligkern[0];
 		if ($skip == 255) {
 			$self->{"boundary"} = $next;
 		}
 		($skip, $next, $opbyte, $remainder) = unpack
-			"CA1CC", $ligkern[$#ligkern];
+			"Ca1CC", $ligkern[$#ligkern];
 		if ($skip == 255) {
 			process_lig_kern($self, "boundary", \@ligkern,
 				256 * $opbyte + $remainder, \@kern);
@@ -206,9 +218,16 @@ sub new {
 # Open the file and return filehandle
 #
 sub open_tfm {
-	my ($self, $fontname) = @_;
-	my $filename = find_tfm_file($fontname) or
-		die "No tfm file found for $fontname";
+	my ($self, %opts) = @_;
+	my $filename;
+	if (defined $opts{file}) {
+		$filename = $opts{file}
+	} elsif (defined $opts{name}) {
+		$filename = find_tfm_file(%opts) or
+			die "No tfm file found for font $opts{name}";
+	} else {
+		die "Either font name or file name has to be specified";
+	}
 
 	# try to open the file
 	print STDERR "Loading $filename\n" if DEBUG;
@@ -216,8 +235,9 @@ sub open_tfm {
 		die "Error opening $filename: $!";
 	binmode TFMFILE;
 
-	$self->{name} = $fontname;	
-	$self->{name} =~ s/\.tfm$//;
+	$self->{name} = $filename;
+	$self->{name} =~ s/\.tfm$//i;
+	$self->{name} =~ s!^.*/!!;
 
 	return(\*TFMFILE);
 }
@@ -230,12 +250,12 @@ sub process_lig_kern {
 	my $firstinstr = 1;
 	while (1) {
 		my ($skipbyte, $nextchar, $opbyte, $remainder)
-			= unpack "CA1CC", $ligkernref->[$prognum];
+			= unpack "Ca1CC", $ligkernref->[$prognum];
 		if ($firstinstr) {
 			if ($skipbyte > 128) {
 				$prognum = 256 * $opbyte + $remainder;
 				($skipbyte, $nextchar, $opbyte, $remainder)
-					= unpack "C4", $ligkernref->[$prognum];
+					= unpack "Ca1CC", $ligkernref->[$prognum];
 			}
 		}
 		if ($opbyte >= 128
@@ -264,26 +284,36 @@ sub process_lig_kern {
 # Find the TFM file
 #
 sub find_tfm_file {
-	my $fontname = shift;
-	$fontname .= ".tfm" unless $fontname =~ /\.tfm$/;
+	my %opts = @_;
+	my $fontname = $opts{name};
+	$fontname .= ".tfm" unless $fontname =~ /\.tfm$/i;
 	print STDERR "Font::TFM::find_tfm_file: \$fontname = $fontname\n" if DEBUG;
 	my $directory;
-	for $directory (split /:/, $TEXFONTSDIR) {
+	for $directory (split /:/,
+		(defined $opts{path} ? $opts{path} : $TEXFONTSDIR)) {
 		print STDERR "Font::TFM::find_tfm_file: \$directory = $directory\n" if DEBUG;
-		my $file = find_tfm_file_in_directory($fontname, $directory);
+		my $file = find_tfm_file_in_directory(%opts,
+			name => $fontname, dir => $directory);
 		return $file if defined $file;
 	}
 	return;
 }
 sub find_tfm_file_in_directory {
-	my ($fontname, $directory) = @_;
-	my $tfmfile = "$directory/$fontname";
-	my $lsfile = "$directory/$LSFILENAME";
+	my %opts = @_;
+	my ($fontname, $directory) = ($opts{name}, $opts{dir});
+	$directory .= '/' unless $directory eq '';
+	my $tfmfile = "$directory$fontname";
+	my $lsfile = "$directory$LSFILENAME";
 	print STDERR "Font::TFM::find_tfm_file_in_directory: \$directory = $directory\n" if DEBUG;
 	if (-f $tfmfile) {
 		return $tfmfile;
 	}
-	if ((-f $lsfile) && ($TEXFONTSUSELS)) {
+	my $usels = $TEXFONTSUSELS;
+	if (defined $opts{usels}) {
+		$usels = 1;
+		$usels = 0 if $opts{usels} eq '0' or $opts{usels} eq 'no';
+	}
+	if (-f $lsfile and $usels) {
 		my $file = find_tfm_file_in_ls($fontname, $lsfile);
 		return $file if defined $file;
 	}
@@ -291,7 +321,8 @@ sub find_tfm_file_in_directory {
 		my $subdir;
 		for $subdir (<$directory/*>) {
 			next unless -d $subdir;
-			my $file = find_tfm_file_in_directory($fontname, $subdir);
+			my $file = find_tfm_file_in_directory(%opts,
+							dir => $subdir);
 			return $file if defined $file;
 		}
 	}
@@ -444,10 +475,7 @@ __END__
 =head1 SYNOPSIS
 
 	use Font::TFM;  
-	### $Font::TFM::TEXFONTSDIR = 'your directories';
-	### to change the default
-
-	my $cmr = new Font::TFM 'cmr10'
+	my $cmr = new Font::TFM name => 'cmr10'
 		or die "Error reading font: $Font::TFM::errstr\n";
 	print 'Designsize: ', $cmr->designsize(), "\n";
 	print $cmr->width('A'), ', ', $cmr->kern('Wo'), "\n";
@@ -461,31 +489,88 @@ should print
 
 To read the information from TFM (TeX font metrics) file, you first
 create the object of B<Font::TFM> class in memory. You do this by
-calling method B<Font::TFM::new> with font name and it creates
-a new TFM object in memory, loading all the necessary information
-from the C<.tfm> file. Second (optional) parameter means scale of the
-font. You can also use B<Font::TFM::new_at> and as the second
-parameter put requested size in pt:
+calling method B<Font::TFM::new> with font name and other parameters
+and it creates a new TFM object in memory, loading all the necessary
+information from the C<.tfm> file.
 
-	my $cmr10_12 = new_at Font::TFM 'cmr10', 12;
+The parameters are passed to B<Font::TFM::new> in a form of a hash:
 
-The methods B<new> and B<new_at> search for the C<.tfm> files in the
-directories listed colon separated in a variable
-I<$Font::TFM::TEXFONTSDIR>, and also in all of their subdirectories.
-By default, they use files C<ls-R> (this name can be changed in the
-I<$Font::TFM::LSFILENAME> variable) to speed up the search. This
-feature can be disabled by setting variable
-I<$Font::TFM::TEXFONTSUSELS> to 0. Suffix C<.tfm> is appended if
-necessary.
+=over 4
+
+=item name
+
+Name of the font, for example cmr10. The file with the font is
+searched for in the directories specified by the global variable
+I<$Font::TFM::TEXFONTSDIR> or by a B<path> parameter.
+
+=item file
+
+Alternatively, instead of B<name>, you can specify full path to the
+font file, for example /usr/lib/tex/fonts/cmr10.tfm. You have to
+specify complete path, including the suffix if the file has any.
+
+=item scale
+
+If you want to load the font information at different size than the
+design size, use this parameter, setting scale. The default is of
+course 1.
+
+=item at
+
+If you want to load the font information at different size than the
+design size, use this parameter, size in points (pt). Using B<at>
+overrides B<scale>.
+
+=item path
+
+Colon separated value list of directories that fill be searched if you
+specify the font by name. By default, global value
+I<$Font::TFM::TEXFONTSDIR> is used.
+
+=item usels
+
+Value 1 tells B<Font::TFM::new> to use pregenerated listings of
+directory contents, this is the default. The name of the file with the
+listing is in global variable I<$Font::TFM::LSFILENAME> and defaults
+to C<ls-R>.
+
+To switch this behaviour off, use value 0 or 'no' for parameter
+B<usels>, or set global variable I<$Font::TFM::TEXFONTSUSELS> to 0.
+
+=item multiply
+
+Dimensions reported by the object that you receive from
+B<Font::TFM::new> are multiplied by value of I<$Font::TFM::MULTIPLY> *
+actual size. Value of I<$Font::TFM::MULTIPLY> defaults to 65536 and
+you can change it by this parameter when loading individual fonts.
+of the font. Value 65536 is nice because the dimensions can be used
+directly when writing the C<.dvi> file.
+
+=back
 
 If the file is not found (or there is some other problem), B<new>
 returns C<undef> and sets error message to I<$Font::TFM::errstr>.
+
+Examples:
+
+	$cmr10 = new Font::TFM 'cmr10';
+	$cmr10 = new Font::TFM 'name' => 'cmr10';
+	$cmr10 = new Font::TFM 'file' => './dir/cmr10.tfm';
+	$cmr12_14 = new Font::TFM 'name' => 'cmr12', at => 14
+		or die 'Error loading font cmr12 at 14 pt: '
+			. $Font::TFM::errstr;
+
+For backward compatibility, you can use B<Font::TFM::new> with just
+one parameter, the font name, or with two parameters, the font name
+and the scale of the size, instead of the hash of parameters and
+values. For backward compatibility, you can use B<Font::TFM::new_at>
+with two parameters, font name and point size of the font.
 
 After the file was loaded, you can use the following methods of
 the object to query information about the font's properties and
 about the characters, etc.
 
-=over
+=over 4
 
 =item designsize, fontsize
 
@@ -565,10 +650,6 @@ Returns the name of the font.
 
 =back
 
-Dimensions are multiplied by I<$Font::TFM::MULTIPLY> * actual size
-of the font. Value of I<$Font::TFM::MULTIPLY> defaults to 65536, so
-the dimensions can be used directly when writing the C<.dvi> file.
-
 Variable I<$Font::TFM::DEBUG> may be set to 1 to get the processing
 messages on the standard error output.
 
@@ -578,7 +659,7 @@ module and defined your own method open_tfm in it.
 
 =head1 VERSION
 
-0.110
+0.130
 
 =head1 SEE ALSO
 

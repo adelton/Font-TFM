@@ -1,6 +1,6 @@
 
 
-BEGIN { $| = 1; print "1..8\n"; }
+BEGIN { $| = 1; print "1..12\n"; }
 END {print "not ok 1\n" unless $::loaded_tfm;}
 
 
@@ -62,4 +62,27 @@ printf "Got $kernresult\n";
 print "not " if $kernresult != -36408.75;
 print "ok 8\n";
 
+print "Loading metric information about font cmr10, with hash parameters\n";
+my $cmrpar1 = new Font::TFM 'name' => 'cmr10', at => 13
+	or do { print $Font::TFM::errstr, 'not '; };
+print "ok 9\n";
+
+print "Checking width of letter A\n";
+my $width1 = $cmrpar1->width('A');
+print "Got $width1\n";
+
+print "not " if $width1 != 638977.625;
+print "ok 10\n";
+
+print "Loading metric information about font file ./cmr10.tfm\n";
+my $cmrpar2 = new Font::TFM 'file' => './cmr10.tfm', at => 12
+	or do { print $Font::TFM::errstr, 'not '; };
+print "ok 11\n";
+
+print "Checking width of letter A\n";
+my $width2 = $cmrpar1->width('A');
+print "Got $width2\n";
+
+print "not " if $width2 != 638977.625;
+print "ok 12\n";
 

@@ -1,8 +1,17 @@
 
 Revision history for module Font::TFM.
 
+0.130 Tue Oct  2 16:38:49 MET DST 2001
+	Changed the interface to method new, adding file option, as
+	well as options to override the global defaults. One- and
+	two-argument calls are still supported.
+
+0.120 Mon Oct  1 21:37:05 MET DST 2001
+	Fixed error with extended kern programs, found by Vladimir
+	Volovich.
+
 0.110 Mon Sep 24 15:50:22 MET DST 2001
-	Fixed kern handling (kern in 'va' was wrong, for exmaple),
+	Fixed kern handling (kern in 'va' was wrong, for example),
 	reported by Vladimir Volovich.
 
 0.100 Sat Sep 16 20:27:34 MET DST 2000
@@ -35,7 +44,7 @@ Revision history for module Font::TFM.
 	new Font::TFM::word_height and Font::TFM::word_depth now call
 	it.
 
-	Font::TFM::MULTIPLY added, still defaults do 65535.
+	Font::TFM::MULTIPLY added, still defaults do 65536.
 
 	Module made faster, also uses AUTOLOAD for many things. Minor
 	bug fixes.
