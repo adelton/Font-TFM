@@ -1,6 +1,14 @@
 
 Revision history for module Font::TFM.
 
+0.100 Sat Sep 16 20:27:34 MET DST 2000
+	The module made subclassable -- fonts can be retrieved from
+	other locations that local disk. The new module (like
+	Font::TFM::UseLWP) has to override the open_tfm method to
+	return a filehandle. Patch provided by Jamie.
+
+	The source code reindented.
+
 0.074 Sun Apr  2 16:36:25 MET DST 2000
 	Removed (defined array) and added DESTROY, 5.6 seems to
 	like that.

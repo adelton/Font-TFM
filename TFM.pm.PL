@@ -3,8 +3,9 @@ my $filename = $0;
 $filename =~ s/\.PL$//;
 
 my $dir = '.';
-if (@ARGV and $ARGV[0] =~ /^-dTEXFONTSDIR=/)
-	{ ( $dir = shift ) =~ s/^-dTEXFONTSDIR=//; }
+if (@ARGV and $ARGV[0] =~ /^-dTEXFONTSDIR=/) {
+	( $dir = shift ) =~ s/^-dTEXFONTSDIR=//;
+}
 
 open OUT,">$filename" or die "Can't create $filename: $!";
 chmod(0755, $filename);
@@ -15,7 +16,7 @@ print OUT <<'EOF';
 
 =head1 NAME
 
-Font::TFM -- read and work with TeX font metric files
+Font::TFM -- read information from TeX font metric files
 
 =cut
 
@@ -28,22 +29,16 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = 0.074;
+$VERSION = '0.100';
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
-sub Error 	{
-		$errstr = join '', @_;
-		print STDERR @_, "\n" if $DEBUG;
-		}
+sub Error {
+	$errstr = join '', @_;
+	print STDERR @_, "\n" if $DEBUG;
+}
 
-EOF
-
-print OUT <<"EOF";
-\$TEXFONTSDIR = '$dir';
-EOF
-
-print OUT <<'EOF';
+$TEXFONTSDIR = '.:/packages/share/tex/lib/fonts';
 $TEXFONTSUSELS = 1;
 $LSFILENAME = "ls-R";
 $MULTIPLY = 65536;
@@ -51,44 +46,38 @@ $MULTIPLY = 65536;
 # #####################
 # Load new font at size
 #
-sub new_at
-	{
+sub new_at {
 	my ($class, $fontname, $size) = @_;
 	$size = -$size if ($size > 0);
 	new($class, $fontname, $size);
-	}
+}
 
 # ########################
 # Load new font with scale
 #
-sub new
-	{
+sub new {
 	my ($class, $fontname, $fontscale) = @_;
 	
+	# make the object
+	my $self = {};
+	bless $self, $class;
+
+	my ($file_handle);
+	eval {
+		$file_handle = $self->open_tfm($fontname);
+	};
+	if ($@) {
+		Error($@); return;
+	}
+
 	# $fontscale: positive is scale, negative size
 	$fontscale = 0 unless defined $fontscale;
 
-	# find the file
-	my $filename = find_tfm_file($fontname);
-	unless (defined $filename)
-		{ Error "No tfm file found for $fontname"; return; }
-
-	# try to open the file
-	print STDERR "Loading $filename\n" if DEBUG;
-	open TFMFILE, $filename or
-		do { Error("Error opening $filename: $!"); return; };
-	binmode TFMFILE;
-
-	# make the object
-	my $self = {};
-	bless $self;
-	$self->{name} = $fontname;	
-	$self->{name} =~ s/\.tfm$//;
-
 	# read header
 	my $buffer = '';
-	if (read(TFMFILE, $buffer, 24) != 24)
-		{ Error("Error reading TFM header: $!"); return; }
+	if (read($file_handle, $buffer, 24) != 24) {
+		Error("Error reading TFM header: $!"); return;
+	}
 
 	# get 12 fields of the header
 	@{$self}{ qw(length headerlength smallest largest numwidth
@@ -99,9 +88,11 @@ sub new
 	$self->{headerlength} *= 4;
 
 	# read rest of the file
-	if (read(TFMFILE, $buffer, $self->{'length'}) != $self->{'length'})	
-		{ Error("Error reading body: $!"); return; }
-	close TFMFILE;
+	if (read($file_handle, $buffer, $self->{'length'})
+		!= $self->{'length'}) {
+			Error("Error reading body: $!"); return;
+	}
+	close $file_handle;
 
 	my $headerrestlength = $self->{headerlength} - 18 * 4;
 
@@ -140,12 +131,12 @@ sub new
 	$self->{fontsize} = $fontsize;
 	my $multiplysize = $fontsize * $MULTIPLY;
 
-	if ($self->{sevenbitsafe})
-		{ $self->{sevenbitsafe} = 1; }
+	if ($self->{sevenbitsafe}) {
+		$self->{sevenbitsafe} = 1;
+	}
 
 	$self->{face} = "";		# computation of face seems useless
-	if ($face < 18)
-		{
+	if ($face < 18) {
 		my ($weight, $slope, $expansion) = ("M", "R", "R");
 		if ($face - 12 >= 0) { $expansion = "E"; $face -= 12; }
 		elsif ($face - 6 >= 0) { $expansion = "C"; $face -= 6; }
@@ -153,7 +144,7 @@ sub new
 		elsif ($face - 2 >= 0) { $weight = "B"; $face -= 2; }
 		if ($face > 0) { $slope = "I"; }
 		$self->{face} = "$weight$slope$expansion";
-		}
+	}
 
 	@{$self->{headerrest}}[0 .. $headerrestlength] = split //, $headerrest;
 
@@ -168,23 +159,21 @@ sub new
 			@{$self->{param}}[2 .. $self->{numparam}];
 					# compute the actual dimensions
 
-	if (@ligkern)		# check for boundary char
-		{
+	if (@ligkern) {		# check for boundary char
 		my ($skip, $next, $opbyte, $remainder);
 		($skip, $next) = unpack "CA1", $ligkern[0];
-		if ($skip == 255)
-			{ $self->{"boundary"} = $next; }
+		if ($skip == 255) {
+			$self->{"boundary"} = $next;
+		}
 		($skip, $next, $opbyte, $remainder) = unpack
 			"CA1CC", $ligkern[$#ligkern];
-		if ($skip == 255)
-			{
+		if ($skip == 255) {
 			process_lig_kern($self, "boundary", \@ligkern,
 				256 * $opbyte + $remainder, \@kern);
-			}
 		}
+	}
 
-	for (0 .. $self->{numofchars} - 1)
-		{
+	for (0 .. $self->{numofchars} - 1) {
 		my $char = pack "C", $_ + $self->{smallest};
 		my ($wid, $heidep, $italtag, $remainder)
 			= unpack "C4", $charinfo[$_];
@@ -196,53 +185,64 @@ sub new
 			$depth[$heidep & 0x0f], $italic[$italtag >> 2]);
 			
 		my $tag = $italtag & 0x03;	# other info
-		if ($tag == 1)			# lig/kern program
-			{
+		if ($tag == 1) {		# lig/kern program
 			process_lig_kern($self, $char, \@ligkern, $remainder, \@kern);
-			}
-		elsif ($tag == 2)		# larger character
-			{
+		}
+		elsif ($tag == 2) {		# larger character
 			$self->{larger}{$char} = pack "C", $remainder;
-			}
-		elsif ($tag == 3)		# extensible character
-			{
+		}
+		elsif ($tag == 3) {		# extensible character
 			my ($top, $mid, $bot, $rep) = unpack "C4", $exten[$remainder];
 			$self->{extentop}{$char} = pack "C", $top if $top;
 			$self->{extenmid}{$char} = pack "C", $mid if $mid;
 			$self->{extenbot}{$char} = pack "C", $bot if $bot;
 			$self->{extenrep}{$char} = $rep;
-			}
 		}
-	$self;
 	}
+	$self;
+}
+
+# ###################################
+# Open the file and return filehandle
+#
+sub open_tfm {
+	my ($self, $fontname) = @_;
+	my $filename = find_tfm_file($fontname) or
+		die "No tfm file found for $fontname";
+
+	# try to open the file
+	print STDERR "Loading $filename\n" if DEBUG;
+	open TFMFILE, $filename or
+		die "Error opening $filename: $!";
+	binmode TFMFILE;
+
+	$self->{name} = $fontname;	
+	$self->{name} =~ s/\.tfm$//;
+
+	return(\*TFMFILE);
+}
 
 # ###################################################
 # Process the ligature/kerning program for a character
 #
-sub process_lig_kern
-	{
+sub process_lig_kern {
 	my ($self, $char, $ligkernref, $prognum, $kernref) = @_;
 	my $firstinstr = 1;
-	while (1)
-		{
+	while (1) {
 		my ($skipbyte, $nextchar, $opbyte, $remainder)
 			= unpack "CA1CC", $ligkernref->[$prognum];
-		if ($firstinstr)
-			{
-			if ($skipbyte > 128)
-				{
+		if ($firstinstr) {
+			if ($skipbyte > 128) {
 				$prognum = 256 * $opbyte + $remainder;
 				($skipbyte, $nextchar, $opbyte, $remainder)
 					= unpack "C4", $ligkernref->[$prognum];
-				}
 			}
-		if ($opbyte >= 128)
-			{
+		}
+		if ($opbyte >= 128) {
 			$self->{kern}{$char . $nextchar}
 				= $kernref->[ 256 * ($opbyte - 128) + $remainder];
-			}
-		else
-			{
+		}
+		else {
 			my ($a, $b, $c) = ($opbyte >> 2, ($opbyte >> 1) & 0x01, $opbyte & 0x01);
 			my $out = "";
 			$out .= $char if $b;
@@ -250,185 +250,161 @@ sub process_lig_kern
 			$out .= $nextchar if $c;
 			$self->{lig}{$char . $nextchar} = $out;
 			$self->{ligpassover}{$char . $nextchar} = $a;
-			}
+		}
 		last if ($skipbyte >= 128);
 		$prognum += $skipbyte + 1;
 		$firstinstr = 0;
-		}
 	}
+}
 
 # #################
 # Find the TFM file
 #
-sub find_tfm_file
-	{
+sub find_tfm_file {
 	my $fontname = shift;
 	$fontname .= ".tfm" unless $fontname =~ /\.tfm$/;
 	print STDERR "Font::TFM::find_tfm_file: \$fontname = $fontname\n" if DEBUG;
 	my $directory;
-	for $directory (split /:/, $TEXFONTSDIR)
-		{
+	for $directory (split /:/, $TEXFONTSDIR) {
 		print STDERR "Font::TFM::find_tfm_file: \$directory = $directory\n" if DEBUG;
 		my $file = find_tfm_file_in_directory($fontname, $directory);
 		return $file if defined $file;
-		}
-	return;
 	}
-sub find_tfm_file_in_directory
-	{
+	return;
+}
+sub find_tfm_file_in_directory {
 	my ($fontname, $directory) = @_;
 	my $tfmfile = "$directory/$fontname";
 	my $lsfile = "$directory/$LSFILENAME";
 	print STDERR "Font::TFM::find_tfm_file_in_directory: \$directory = $directory\n" if DEBUG;
-	if (-f $tfmfile)
-		{
+	if (-f $tfmfile) {
 		return $tfmfile;
-		}
-	if ((-f $lsfile) && ($TEXFONTSUSELS))
-		{
+	}
+	if ((-f $lsfile) && ($TEXFONTSUSELS)) {
 		my $file = find_tfm_file_in_ls($fontname, $lsfile);
 		return $file if defined $file;
-		}
-	else
-		{
+	}
+	else {
 		my $subdir;
-		for $subdir (<$directory/*>)
-			{
+		for $subdir (<$directory/*>) {
 			next unless -d $subdir;
 			my $file = find_tfm_file_in_directory($fontname, $subdir);
 			return $file if defined $file;
-			}
 		}
-	return;
 	}
-sub find_tfm_file_in_ls
-	{
+	return;
+}
+sub find_tfm_file_in_ls {
 	my ($fontname, $lsfile) = @_;
 	my $lsdir = $lsfile;
 	$lsdir =~ s!/$LSFILENAME$!!;
 	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsfile = $lsfile\n" if DEBUG;
 	print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if DEBUG;
-	if (not open LSFILE, $lsfile)
-		{ Error("Error opening $lsfile: $!"); return; }
+	if (not open LSFILE, $lsfile) {
+		Error("Error opening $lsfile: $!"); return;
+	}
 	local ($/) = "\n";
-	while (<LSFILE>)
-		{
+	while (<LSFILE>) {
 		chomp;
-		if (/:$/)
-			{
+		if (/:$/) {
 			$lsdir = $_;
 			$lsdir =~ s!:$!!;
 			print STDERR "Font::TFM::find_tfm_file_in_ls: \$lsdir = $lsdir\n" if (DEBUG > 10);
-			}
-		elsif ($_ eq $fontname)
-			{
+		}
+		elsif ($_ eq $fontname) {
 			my $file = "$lsdir/$fontname";
-			if (-f $file)
-				{
+			if (-f $file) {
 				close LSFILE;
 				print STDERR "file $fontname found in $lsfile\n" if DEBUG;
 				return $file;
-				}
 			}
 		}
+	}
 	print STDERR "file $fontname not found in $lsfile\n" if DEBUG;
 	return;
-	}
-sub getfixword
-	{
+}
+sub getfixword {
 	my $val = $_[0];
 	my $p = pack "L", $val;
-	if ($val & 0x80000000)
-		{
+	if ($val & 0x80000000) {
 		$val = unpack "l", $p;
-		}
+	}
 	return ($val / (1 << 20));
-	}
-sub kern
-	{
+}
+sub kern {
 	my ($self, $double, $second) = @_;
 	$double .= $second if (defined $second);
-	if (defined $self->{kern}{$double})
-		{ return $self->{kern}{$double}; }
+	if (defined $self->{kern}{$double}) {
+		return $self->{kern}{$double};
+	}
 	return 0;
-	}
-sub lig
-	{
+}
+sub lig {
 	my ($self, $double, $second) = @_;
 	$double .= $second if (defined $second);
-	if (defined $self->{lig}{$double})
-		{ return $self->{lig}{$double}; }
-	return undef;
+	if (defined $self->{lig}{$double}) {
+		return $self->{lig}{$double};
 	}
-sub ligpassover
-	{
+	return undef;
+}
+sub ligpassover {
 	my ($self, $double) = @_;
 	$self->{ligpassover}{$double};
-	}
-sub param
-	{
+}
+sub param {
 	my ($self, $param) = @_;
 	$self->{param}[$param];
-	}
-sub word_dimensions
-	{
+}
+sub word_dimensions {
 	my ($self, $text) = @_;
 	my @expanded = $self->expand($text);
 	my ($width, $height, $depth) = (0, 0, 0);
-	while (@expanded)
-		{
+	while (@expanded) {
 		my $word = shift @expanded;
-		while ($word =~ /./sg)
-			{
+		while ($word =~ /./sg) {
 			my $char = $&;
 			$width += $self->width($char);
 			my $newval = $self->height($char);
 			$height = $newval if ($newval > $height);
 			$newval = $self->depth($char);
 			$depth = $newval if ($newval > $depth);
-			}
+		}
                 last if (not @expanded);
 		$width += shift @expanded;
-		}
-	($width, $height, $depth);
 	}
-sub expand
-	{
+	($width, $height, $depth);
+}
+sub expand {
 	my ($self, $text) = @_;
 	my $pos = 0;
 	
 	# ligature substitutions
-	while ($pos < (length $text) - 1)
-		{
+	while ($pos < (length $text) - 1) {
 		my $found;
 		my $substr = substr $text, $pos, 2;
 		$found = $self->lig(substr $text, $pos, 2);
-		if (defined $found)
-			{
+		if (defined $found) {
 			substr($text, $pos, 2) = $found;
 			$pos += $self->ligpassover($substr);
-			}
+		}
 		else
 			{ $pos++ }
-
-		}
+	}
 
 	# kerning processing
 	my @out = ();
 	my $currentstring = substr $text, 0, 1;
-	while ($text =~ /(.)(?=(.))/gs)
-		{
-		if ($self->kern($1 . $2))
-			{
+	while ($text =~ /(.)(?=(.))/gs) {
+		if ($self->kern($1 . $2)) {
 			push @out, $currentstring;
 			$currentstring = '';
 			push @out, $self->kern($1 . $2);
-			}
-		$currentstring .= $2
 		}
+		$currentstring .= $2
+	}
 	push @out, $currentstring;
 	@out;
-	}
+}
 
 
 my %PARAM_NAMES = ( slant => 1, space => 2, space_stretch => 3,
@@ -439,8 +415,7 @@ my @CHAR_NAMES = qw( width height depth italic );
 my %WORD_NAMES = ( word_width => 0, word_height => 1, word_depth => 2 );
 
 use vars qw( $AUTOLOAD );
-sub AUTOLOAD
-	{
+sub AUTOLOAD {
 	my $self = shift;
 	my $function = $AUTOLOAD;
 	local ($_);
@@ -455,7 +430,7 @@ sub AUTOLOAD
 	return $self->{$function}
 		if grep { $_ eq $function } @GENERAL_NAMES;
 	die "Method $function not defined for $self";
-	}
+}
 
 sub Version	{ $VERSION; }
 sub DESTROY {}
@@ -481,10 +456,13 @@ should print
 
 =head1 DESCRIPTION
 
-Method B<Font::TFM::new> creates a new TFM object in memory, loading
-all the necessary information from the C<.tfm> file. Second (optional)
-parameter means scale. You can also use B<Font::TFM::new_at> and as
-the second parameter put requested size in pt:
+To read the information from TFM (TeX font metrics) file, you first
+create the object of B<Font::TFM> class in memory. You do this by
+calling method B<Font::TFM::new> with font name and it creates
+a new TFM object in memory, loading all the necessary information
+from the C<.tfm> file. Second (optional) parameter means scale of the
+font. You can also use B<Font::TFM::new_at> and as the second
+parameter put requested size in pt:
 
 	my $cmr10_12 = new_at Font::TFM 'cmr10', 12;
 
@@ -494,15 +472,15 @@ I<$Font::TFM::TEXFONTSDIR>, and also in all of their subdirectories.
 By default, they use files C<ls-R> (this name can be changed in the
 I<$Font::TFM::LSFILENAME> variable) to speed up the search. This
 feature can be disabled by setting variable
-I<$Font::TFM::TEXFONTSUSELS> to 0. 
-Suffix C<.tfm> is appended if necessary.
+I<$Font::TFM::TEXFONTSUSELS> to 0. Suffix C<.tfm> is appended if
+necessary.
 
-If the file is not found (or there is some other method), B<new>
+If the file is not found (or there is some other problem), B<new>
 returns C<undef> and sets error message to I<$Font::TFM::errstr>.
 
-After was the file loaded, you can use following methods of the object
-to query information about the font's properties and about the
-characters, etc.
+After the file was loaded, you can use the following methods of
+the object to query information about the font's properties and
+about the characters, etc.
 
 =over
 
@@ -591,9 +569,13 @@ the dimensions can be used directly when writing the C<.dvi> file.
 Variable I<$Font::TFM::DEBUG> may be set to 1 to get the processing
 messages on the standard error output.
 
+The module is subclassable. You can define you own module that would
+provide alternate way of finding and opening the file. Just make new
+module and defined your own method open_tfm in it.
+
 =head1 VERSION
 
-0.074
+0.100
 
 =head1 SEE ALSO
 
@@ -601,7 +583,7 @@ TeX::DVI(3), TeX::DVI::Parse(3), perl(1).
 
 =head1 AUTHOR
 
-(c) 1996--1998 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1996--2000 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/
 at Faculty of Informatics, Masaryk University, Brno, Czech Republic
 
