@@ -1,7 +1,7 @@
 
 Revision history for module Font::TFM.
 
-0.150-test
+0.150 Tue Sep 21 11:12:19 MET DST 2004
 	Added support for TeX math font parameter names.
 
 0.130 Tue Oct  2 16:38:49 MET DST 2001
