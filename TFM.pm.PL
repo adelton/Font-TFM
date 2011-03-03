@@ -29,7 +29,7 @@ use vars qw( $VERSION $DEBUG $TEXFONTSDIR $TEXFONTSUSELS
 # ################
 # Global variables
 #
-$VERSION = '0.150';
+$VERSION = '1.01';
 $errstr = '';
 $DEBUG = 0;
 sub DEBUG ()	{ $DEBUG; }
@@ -703,18 +703,25 @@ module and define your own method open_tfm in it.
 
 =head1 VERSION
 
-0.150
+1.01
+
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/Font-TFM/
+
+=head1 AUTHOR
+
+(c) 1996--2011 Jan Pazdziora.
+
+All rights reserved. This package is free software; you can
+redistribute it and/or modify it under the same terms as Perl itself.
+
+Contact the author at jpx dash perl at adelton dot com.
 
 =head1 SEE ALSO
 
 TFtoPL for description of the TFM format, TeX::DVI(3),
 TeX::DVI::Parse(3).
-
-=head1 AUTHOR
-
-(c) 1996--2004 Jan Pazdziora, adelton@fi.muni.cz,
-http://www.fi.muni.cz/~adelton/
-at Faculty of Informatics, Masaryk University, Brno, Czech Republic
 
 =cut
 

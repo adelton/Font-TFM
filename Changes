@@ -1,6 +1,10 @@
 
 Revision history for module Font::TFM.
 
+1.01 Thu Mar  3 22:03:20 CET 2011
+	Updating the upstream URL to
+	http://www.adelton.com/perl/Font-TFM/
+
 0.150 Tue Sep 21 11:12:19 MET DST 2004
 	Added support for TeX math font parameter names.
 

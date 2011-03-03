@@ -30,10 +30,13 @@ Ideas, bug reports:
 	help me solve the problem faster.
 
 Available:
-	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
+	http://www.adelton.com/perl/Font-TFM/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1996--2001 Jan Pazdziora, adelton@fi.muni.cz. All rights
-	reserved. This module is free software; you can redistribute
-	it and/or modify it under the same terms as Perl itself. 
+	Contact the author at jpx dash perl at adelton dot com.
+
+Copyright: (c) 1996--2011 Jan Pazdziora.
+	All rights reserved. This program is free software; you can
+	redistribute it and/or modify it under the same terms as Perl
+	itself. 
 
